@@ -8,27 +8,37 @@ import {
   type ReactNode
 } from 'react';
 import { defaultData, loadData, saveData } from './storage';
-import type { AppData, Session, Units } from './types';
+import type { AppData, Session, Tombstone, Units } from './types';
 
 type Action =
-  | { type: 'add-block'; date: string; blockId: string; exerciseId: string }
-  | { type: 'remove-block'; date: string; blockId: string }
-  | { type: 'add-set'; date: string; blockId: string; setId: string; weightKg: number; reps: number; rpe: number | null }
-  | { type: 'update-set'; date: string; blockId: string; setId: string; weightKg: number; reps: number; rpe: number | null }
-  | { type: 'remove-set'; date: string; blockId: string; setId: string }
-  | { type: 'delete-session'; date: string }
-  | { type: 'set-bodyweight'; date: string; weightKg: number | null }
-  | { type: 'set-units'; units: Units }
-  | { type: 'add-custom-exercise'; id: string; name: string }
-  | { type: 'remove-custom-exercise'; id: string }
+  | { type: 'add-block'; date: string; blockId: string; exerciseId: string; at: number }
+  | { type: 'remove-block'; date: string; blockId: string; at: number }
+  | { type: 'add-set'; date: string; blockId: string; setId: string; weightKg: number; reps: number; rpe: number | null; at: number }
+  | { type: 'update-set'; date: string; blockId: string; setId: string; weightKg: number; reps: number; rpe: number | null; at: number }
+  | { type: 'remove-set'; date: string; blockId: string; setId: string; at: number }
+  | { type: 'delete-session'; date: string; at: number }
+  | { type: 'set-bodyweight'; date: string; weightKg: number | null; at: number }
+  | { type: 'set-units'; units: Units; at: number }
+  | { type: 'add-custom-exercise'; id: string; name: string; at: number }
+  | { type: 'remove-custom-exercise'; id: string; at: number }
   | { type: 'import-data'; data: AppData }
+  | { type: 'apply-synced'; data: AppData }
   | { type: 'clear-all' };
 
-function upsertSession(sessions: Session[], date: string, fn: (s: Session) => Session): Session[] {
+function withTombstone(tombstones: Tombstone[], t: Tombstone): Tombstone[] {
+  return [...tombstones.filter((x) => !(x.type === t.type && x.key === t.key)), t];
+}
+
+function upsertSession(
+  sessions: Session[],
+  date: string,
+  at: number,
+  fn: (s: Session) => Session
+): Session[] {
   if (sessions.some((s) => s.date === date)) {
-    return sessions.map((s) => (s.date === date ? fn(s) : s));
+    return sessions.map((s) => (s.date === date ? { ...fn(s), updatedAt: at } : s));
   }
-  return [...sessions, fn({ id: `session-${date}`, date, blocks: [] })];
+  return [...sessions, { ...fn({ id: `session-${date}`, date, blocks: [], updatedAt: at }), updatedAt: at }];
 }
 
 function reducer(data: AppData, action: Action): AppData {
@@ -36,7 +46,7 @@ function reducer(data: AppData, action: Action): AppData {
     case 'add-block':
       return {
         ...data,
-        sessions: upsertSession(data.sessions, action.date, (s) => ({
+        sessions: upsertSession(data.sessions, action.date, action.at, (s) => ({
           ...s,
           blocks: [...s.blocks, { id: action.blockId, exerciseId: action.exerciseId, sets: [] }]
         }))
@@ -45,7 +55,7 @@ function reducer(data: AppData, action: Action): AppData {
       const sessions = data.sessions
         .map((s) =>
           s.date === action.date
-            ? { ...s, blocks: s.blocks.filter((b) => b.id !== action.blockId) }
+            ? { ...s, blocks: s.blocks.filter((b) => b.id !== action.blockId), updatedAt: action.at }
             : s
         )
         .filter((s) => s.blocks.length > 0);
@@ -54,82 +64,105 @@ function reducer(data: AppData, action: Action): AppData {
     case 'add-set':
       return {
         ...data,
-        sessions: data.sessions.map((s) =>
-          s.date !== action.date
-            ? s
-            : {
-                ...s,
-                blocks: s.blocks.map((b) =>
-                  b.id !== action.blockId
-                    ? b
-                    : {
-                        ...b,
-                        sets: [
-                          ...b.sets,
-                          { id: action.setId, weightKg: action.weightKg, reps: action.reps, rpe: action.rpe }
-                        ]
-                      }
-                )
-              }
-        )
+        sessions: upsertSession(data.sessions, action.date, action.at, (s) => ({
+          ...s,
+          blocks: s.blocks.map((b) =>
+            b.id !== action.blockId
+              ? b
+              : {
+                  ...b,
+                  sets: [
+                    ...b.sets,
+                    { id: action.setId, weightKg: action.weightKg, reps: action.reps, rpe: action.rpe }
+                  ]
+                }
+          )
+        }))
       };
     case 'update-set':
       return {
         ...data,
-        sessions: data.sessions.map((s) =>
-          s.date !== action.date
-            ? s
-            : {
-                ...s,
-                blocks: s.blocks.map((b) =>
-                  b.id !== action.blockId
-                    ? b
-                    : {
-                        ...b,
-                        sets: b.sets.map((set) =>
-                          set.id === action.setId
-                            ? { ...set, weightKg: action.weightKg, reps: action.reps, rpe: action.rpe }
-                            : set
-                        )
-                      }
-                )
-              }
-        )
+        sessions: upsertSession(data.sessions, action.date, action.at, (s) => ({
+          ...s,
+          blocks: s.blocks.map((b) =>
+            b.id !== action.blockId
+              ? b
+              : {
+                  ...b,
+                  sets: b.sets.map((set) =>
+                    set.id === action.setId
+                      ? { ...set, weightKg: action.weightKg, reps: action.reps, rpe: action.rpe }
+                      : set
+                  )
+                }
+          )
+        }))
       };
     case 'remove-set':
       return {
         ...data,
-        sessions: data.sessions.map((s) =>
-          s.date !== action.date
-            ? s
-            : {
-                ...s,
-                blocks: s.blocks.map((b) =>
-                  b.id !== action.blockId ? b : { ...b, sets: b.sets.filter((set) => set.id !== action.setId) }
-                )
-              }
-        )
+        sessions: upsertSession(data.sessions, action.date, action.at, (s) => ({
+          ...s,
+          blocks: s.blocks.map((b) =>
+            b.id !== action.blockId ? b : { ...b, sets: b.sets.filter((set) => set.id !== action.setId) }
+          )
+        }))
       };
     case 'delete-session':
-      return { ...data, sessions: data.sessions.filter((s) => s.date !== action.date) };
-    case 'set-bodyweight': {
-      const rest = data.bodyWeights.filter((b) => b.date !== action.date);
       return {
         ...data,
-        bodyWeights:
-          action.weightKg == null ? rest : [...rest, { date: action.date, weightKg: action.weightKg }]
+        sessions: data.sessions.filter((s) => s.date !== action.date),
+        tombstones: withTombstone(data.tombstones, {
+          type: 'session',
+          key: action.date,
+          deletedAt: action.at
+        })
+      };
+    case 'set-bodyweight': {
+      const rest = data.bodyWeights.filter((b) => b.date !== action.date);
+      if (action.weightKg == null) {
+        return {
+          ...data,
+          bodyWeights: rest,
+          tombstones: withTombstone(data.tombstones, {
+            type: 'bodyweight',
+            key: action.date,
+            deletedAt: action.at
+          })
+        };
+      }
+      return {
+        ...data,
+        bodyWeights: [...rest, { date: action.date, weightKg: action.weightKg, updatedAt: action.at }]
       };
     }
     case 'set-units':
-      return { ...data, settings: { ...data.settings, units: action.units } };
+      return {
+        ...data,
+        settings: { ...data.settings, units: action.units },
+        settingsUpdatedAt: action.at
+      };
     case 'add-custom-exercise':
       return {
         ...data,
-        customExercises: [...data.customExercises, { id: action.id, name: action.name, isCustom: true }]
+        customExercises: [
+          ...data.customExercises,
+          { id: action.id, name: action.name, isCustom: true, createdAt: action.at }
+        ]
       };
     case 'remove-custom-exercise':
-      return { ...data, customExercises: data.customExercises.filter((e) => e.id !== action.id) };
+      return {
+        ...data,
+        customExercises: data.customExercises.filter((e) => e.id !== action.id),
+        tombstones: withTombstone(data.tombstones, {
+          type: 'exercise',
+          key: action.id,
+          deletedAt: action.at
+        })
+      };
     case 'import-data':
+      return action.data;
+    case 'apply-synced':
       return action.data;
     case 'clear-all':
       return defaultData();
@@ -161,35 +194,38 @@ export function uid(): string {
     : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
-/** Action helpers; ids are generated here so the reducer stays pure. */
+/** Action helpers; ids and timestamps are generated here so the reducer stays pure. */
 export function useActions() {
   const { dispatch } = useApp();
   return useMemo(
     () => ({
       addBlock: (date: string, exerciseId: string) =>
-        dispatch({ type: 'add-block', date, blockId: uid(), exerciseId }),
-      removeBlock: (date: string, blockId: string) => dispatch({ type: 'remove-block', date, blockId }),
+        dispatch({ type: 'add-block', date, blockId: uid(), exerciseId, at: Date.now() }),
+      removeBlock: (date: string, blockId: string) =>
+        dispatch({ type: 'remove-block', date, blockId, at: Date.now() }),
       addSet: (date: string, blockId: string, set: { weightKg: number; reps: number; rpe: number | null }) =>
-        dispatch({ type: 'add-set', date, blockId, setId: uid(), ...set }),
+        dispatch({ type: 'add-set', date, blockId, setId: uid(), ...set, at: Date.now() }),
       updateSet: (
         date: string,
         blockId: string,
         setId: string,
         set: { weightKg: number; reps: number; rpe: number | null }
-      ) => dispatch({ type: 'update-set', date, blockId, setId, ...set }),
+      ) => dispatch({ type: 'update-set', date, blockId, setId, ...set, at: Date.now() }),
       removeSet: (date: string, blockId: string, setId: string) =>
-        dispatch({ type: 'remove-set', date, blockId, setId }),
-      deleteSession: (date: string) => dispatch({ type: 'delete-session', date }),
+        dispatch({ type: 'remove-set', date, blockId, setId, at: Date.now() }),
+      deleteSession: (date: string) => dispatch({ type: 'delete-session', date, at: Date.now() }),
       setBodyWeight: (date: string, weightKg: number | null) =>
-        dispatch({ type: 'set-bodyweight', date, weightKg }),
-      setUnits: (units: Units) => dispatch({ type: 'set-units', units }),
+        dispatch({ type: 'set-bodyweight', date, weightKg, at: Date.now() }),
+      setUnits: (units: Units) => dispatch({ type: 'set-units', units, at: Date.now() }),
       addCustomExercise: (name: string): string => {
         const id = `custom-${uid()}`;
-        dispatch({ type: 'add-custom-exercise', id, name });
+        dispatch({ type: 'add-custom-exercise', id, name, at: Date.now() });
         return id;
       },
-      removeCustomExercise: (id: string) => dispatch({ type: 'remove-custom-exercise', id }),
+      removeCustomExercise: (id: string) =>
+        dispatch({ type: 'remove-custom-exercise', id, at: Date.now() }),
       importData: (data: AppData) => dispatch({ type: 'import-data', data }),
+      applySynced: (data: AppData) => dispatch({ type: 'apply-synced', data }),
       clearAll: () => dispatch({ type: 'clear-all' })
     }),
     [dispatch]

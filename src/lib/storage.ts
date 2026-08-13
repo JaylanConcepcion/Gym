@@ -1,32 +1,62 @@
-import type { AppData } from './types';
+import type { AppData, BodyWeightEntry, ExerciseDef, Session, Tombstone } from './types';
 
 const STORAGE_KEY = 'pl-tracker/v1';
 
 export function defaultData(): AppData {
   return {
-    version: 1,
+    version: 2,
     settings: { units: 'lb' },
+    settingsUpdatedAt: 0,
     customExercises: [],
     sessions: [],
-    bodyWeights: []
+    bodyWeights: [],
+    tombstones: []
   };
 }
 
-/** Shape-check untrusted JSON (storage or an imported backup file). */
+/**
+ * Shape-check untrusted JSON (storage, an imported backup, or a synced gist).
+ * Accepts v1 documents and migrates them to v2 (timestamps default to 0 so
+ * any real edit wins a merge against migrated data).
+ */
 export function normalizeData(raw: unknown): AppData | null {
   if (!raw || typeof raw !== 'object') return null;
-  const d = raw as Partial<AppData>;
-  if (d.version !== 1) return null;
+  const d = raw as {
+    version?: number;
+    settings?: { units?: string };
+    settingsUpdatedAt?: number;
+    customExercises?: unknown[];
+    sessions?: unknown[];
+    bodyWeights?: unknown[];
+    tombstones?: unknown[];
+  };
+  if (d.version !== 1 && d.version !== 2) return null;
   if (!d.settings || (d.settings.units !== 'lb' && d.settings.units !== 'kg')) return null;
   if (!Array.isArray(d.sessions) || !Array.isArray(d.bodyWeights) || !Array.isArray(d.customExercises)) {
     return null;
   }
   return {
-    version: 1,
+    version: 2,
     settings: { units: d.settings.units },
-    customExercises: d.customExercises,
-    sessions: d.sessions,
-    bodyWeights: d.bodyWeights
+    settingsUpdatedAt: typeof d.settingsUpdatedAt === 'number' ? d.settingsUpdatedAt : 0,
+    customExercises: (d.customExercises as ExerciseDef[]).map((e) => ({
+      id: e.id,
+      name: e.name,
+      isCustom: true,
+      createdAt: typeof e.createdAt === 'number' ? e.createdAt : 0
+    })),
+    sessions: (d.sessions as Session[]).map((s) => ({
+      id: s.id,
+      date: s.date,
+      blocks: s.blocks,
+      updatedAt: typeof s.updatedAt === 'number' ? s.updatedAt : 0
+    })),
+    bodyWeights: (d.bodyWeights as BodyWeightEntry[]).map((b) => ({
+      date: b.date,
+      weightKg: b.weightKg,
+      updatedAt: typeof b.updatedAt === 'number' ? b.updatedAt : 0
+    })),
+    tombstones: Array.isArray(d.tombstones) ? (d.tombstones as Tombstone[]) : []
   };
 }
 

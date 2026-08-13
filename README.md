@@ -14,6 +14,9 @@ used at the gym with zero connectivity.
 - PR board: best single, all-time best e1RM, and rep PRs for 1–10 reps
 - lb/kg toggle (weights stored unit-agnostic in kg), custom exercises, JSON export/import backup
 - All data stays on-device (browser storage) — no accounts, no server
+- Optional cross-device sync via a private GitHub Gist (Settings → Sync): paste a gist-scoped
+  personal access token on each device; devices merge with per-day newest-wins semantics and
+  deletion tombstones, and reconcile automatically on open/focus/reconnect
 
 ## Development
 

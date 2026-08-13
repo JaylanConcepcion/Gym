@@ -1,7 +1,7 @@
 {
   "name": "powerlifting-tracker",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "module",
   "description": "Offline-first powerlifting tracker PWA: log lifts with RPE, estimate 1RMs, chart weekly progression.",
   "scripts": {

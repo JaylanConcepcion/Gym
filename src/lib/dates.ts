@@ -35,6 +35,17 @@ export function formatShortDate(dateStr: string): string {
   });
 }
 
+export function formatRelativeTime(msEpoch: number): string {
+  const diff = Date.now() - msEpoch;
+  if (diff < 30_000) return 'just now';
+  const m = Math.floor(diff / 60_000);
+  if (m < 1) return 'moments ago';
+  if (m < 60) return `${m} min ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h} h ago`;
+  return new Date(msEpoch).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
 export function formatLongDate(dateStr: string): string {
   const d = parseISODate(dateStr);
   const sameYear = d.getFullYear() === new Date().getFullYear();

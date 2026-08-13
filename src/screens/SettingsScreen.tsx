@@ -1,18 +1,27 @@
 import { useMemo, useRef, useState, type ChangeEvent } from 'react';
-import { todayISO } from '../lib/dates';
+import { formatRelativeTime, todayISO } from '../lib/dates';
+import { TOKEN_URL } from '../lib/gist';
 import { allLoggedSets } from '../lib/stats';
 import { normalizeData } from '../lib/storage';
 import { useActions, useApp } from '../lib/store';
+import { useSync } from '../lib/sync';
 import type { Units } from '../lib/types';
 
 export default function SettingsScreen() {
   const { data } = useApp();
   const actions = useActions();
+  const sync = useSync();
   const units = data.settings.units;
   const [newExercise, setNewExercise] = useState('');
+  const [tokenInput, setTokenInput] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
   const usedIds = useMemo(() => new Set(allLoggedSets(data).map((s) => s.exerciseId)), [data]);
+
+  async function connectSync() {
+    const ok = await sync.connect(tokenInput);
+    if (ok) setTokenInput('');
+  }
 
   function exportData() {
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -79,10 +88,12 @@ export default function SettingsScreen() {
   }
 
   function clearAll() {
+    const extra = sync.enabled ? ' Sync will be disconnected on this device first.' : '';
     if (
-      window.confirm('Delete ALL sessions, bodyweight entries and custom exercises?') &&
+      window.confirm(`Delete ALL sessions, bodyweight entries and custom exercises on this device?${extra}`) &&
       window.confirm('Really sure? This cannot be undone. (Export a backup first!)')
     ) {
+      if (sync.enabled) sync.disconnect();
       actions.clearAll();
     }
   }
@@ -93,6 +104,82 @@ export default function SettingsScreen() {
         <h1>Settings</h1>
       </header>
       <div className="stack">
+        <section className="card">
+          <h3>Sync between devices</h3>
+          {sync.enabled ? (
+            <>
+              <div className="sync-status">
+                <span
+                  className={`status-dot ${
+                    sync.status === 'error' ? 'err' : sync.status === 'syncing' ? 'busy' : 'ok'
+                  }`}
+                />
+                <div>
+                  <div className="sync-line">
+                    Connected as <strong>{sync.login ?? 'GitHub'}</strong>
+                  </div>
+                  <div className="sub dim">
+                    {sync.status === 'syncing'
+                      ? 'Syncing…'
+                      : sync.lastSyncAt
+                        ? `Last synced ${formatRelativeTime(sync.lastSyncAt)}`
+                        : 'Not synced yet'}
+                  </div>
+                </div>
+              </div>
+              {sync.error && <div className="sync-error">{sync.error}</div>}
+              <div className="row wrap" style={{ marginTop: 10 }}>
+                <button type="button" className="btn ghost" onClick={sync.syncNow}>
+                  Sync now
+                </button>
+                <button type="button" className="btn ghost danger" onClick={sync.disconnect}>
+                  Disconnect
+                </button>
+              </div>
+              <div className="sub dim" style={{ marginTop: 8 }}>
+                To link another device, paste the same token there. Your log lives in a private gist
+                only your GitHub account can see.
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="sub" style={{ marginBottom: 10 }}>
+                Keep your iPhone and Mac showing the same log. Free, using a private GitHub Gist on
+                your own account. Both devices still work offline; they reconcile whenever online.
+              </div>
+              <div className="sub dim" style={{ marginBottom: 6 }}>
+                1 · Create a token (pre-filled with only gist access; choose “No expiration”, then
+                Generate and copy it):
+              </div>
+              <a className="btn ghost small" href={TOKEN_URL} target="_blank" rel="noreferrer">
+                Open GitHub token page
+              </a>
+              <div className="sub dim" style={{ margin: '10px 0 6px' }}>
+                2 · Paste the token and connect (same token on every device):
+              </div>
+              <div className="row">
+                <input
+                  className="input"
+                  type="password"
+                  autoComplete="off"
+                  placeholder="ghp_…"
+                  value={tokenInput}
+                  onChange={(e) => setTokenInput(e.target.value)}
+                />
+                <button
+                  type="button"
+                  className="btn accent"
+                  disabled={!tokenInput.trim() || sync.status === 'syncing'}
+                  onClick={() => void connectSync()}
+                >
+                  {sync.status === 'syncing' ? 'Connecting…' : 'Connect'}
+                </button>
+              </div>
+              {sync.error && <div className="sync-error">{sync.error}</div>}
+            </>
+          )}
+        </section>
+
         <section className="card">
           <h3>Units</h3>
           <div className="seg">
@@ -144,8 +231,8 @@ export default function SettingsScreen() {
         <section className="card">
           <h3>Backup</h3>
           <div className="sub dim" style={{ marginBottom: 10 }}>
-            All data lives on this device only. Export a backup now and then so you never lose training
-            history.
+            Export a backup now and then so you never lose training history — especially if you're
+            not using sync.
           </div>
           <div className="row wrap">
             <button type="button" className="btn ghost" onClick={exportData}>
@@ -175,7 +262,7 @@ export default function SettingsScreen() {
         </section>
 
         <div className="sub dim about">
-          Powerlifting Tracker v1.0.0 · e1RM uses the RTS-style RPE chart (Epley beyond 12 effective
+          Powerlifting Tracker v1.1.0 · e1RM uses the RTS-style RPE chart (Epley beyond 12 effective
           reps).
         </div>
       </div>

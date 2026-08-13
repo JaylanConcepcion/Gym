@@ -4,6 +4,8 @@ export interface ExerciseDef {
   id: string;
   name: string;
   isCustom?: boolean;
+  /** ms epoch; used to resolve deletes vs re-creates across devices. */
+  createdAt?: number;
 }
 
 export interface WorkoutSet {
@@ -26,11 +28,22 @@ export interface Session {
   /** Local date, YYYY-MM-DD. One session per day. */
   date: string;
   blocks: ExerciseBlock[];
+  /** ms epoch of the last edit; drives cross-device merge (newest wins per day). */
+  updatedAt: number;
 }
 
 export interface BodyWeightEntry {
   date: string;
   weightKg: number;
+  updatedAt: number;
+}
+
+/** Deletion marker so removals propagate across devices instead of resurrecting. */
+export interface Tombstone {
+  type: 'session' | 'bodyweight' | 'exercise';
+  /** Session/bodyweight: date. Exercise: id. */
+  key: string;
+  deletedAt: number;
 }
 
 export interface Settings {
@@ -38,9 +51,11 @@ export interface Settings {
 }
 
 export interface AppData {
-  version: 1;
+  version: 2;
   settings: Settings;
+  settingsUpdatedAt: number;
   customExercises: ExerciseDef[];
   sessions: Session[];
   bodyWeights: BodyWeightEntry[];
+  tombstones: Tombstone[];
 }

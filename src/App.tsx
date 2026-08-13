@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import TabBar, { type Tab } from './components/TabBar';
 import { AppProvider } from './lib/store';
+import { SyncProvider } from './lib/sync';
 import HistoryScreen from './screens/HistoryScreen';
 import LogScreen from './screens/LogScreen';
 import ProgressScreen from './screens/ProgressScreen';
@@ -11,15 +12,17 @@ export default function App() {
 
   return (
     <AppProvider>
-      <div className="app">
-        <main className="content">
-          {tab === 'log' && <LogScreen />}
-          {tab === 'history' && <HistoryScreen />}
-          {tab === 'progress' && <ProgressScreen />}
-          {tab === 'settings' && <SettingsScreen />}
-        </main>
-        <TabBar active={tab} onChange={setTab} />
-      </div>
+      <SyncProvider>
+        <div className="app">
+          <main className="content">
+            {tab === 'log' && <LogScreen />}
+            {tab === 'history' && <HistoryScreen />}
+            {tab === 'progress' && <ProgressScreen />}
+            {tab === 'settings' && <SettingsScreen />}
+          </main>
+          <TabBar active={tab} onChange={setTab} />
+        </div>
+      </SyncProvider>
     </AppProvider>
   );
 }
