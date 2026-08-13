@@ -27,11 +27,20 @@ export interface ExerciseBlock {
   sets: WorkoutSet[];
 }
 
+export interface CardioEntry {
+  id: string;
+  durationMin: number;
+  /** Stored canonically in km/h; entered as mph or km/h depending on units. */
+  speedKmh: number;
+  inclinePct: number;
+}
+
 export interface Session {
   id: string;
   /** Local date, YYYY-MM-DD. One session per day. */
   date: string;
   blocks: ExerciseBlock[];
+  cardio: CardioEntry[];
   /** ms epoch of the last edit; drives cross-device merge (newest wins per day). */
   updatedAt: number;
 }
@@ -69,6 +78,13 @@ export interface Settings {
   units: Units;
 }
 
+/** Personal info used (with logged bodyweight) for cardio calorie estimates. */
+export interface Profile {
+  heightCm: number | null;
+  age: number | null;
+  sex: 'm' | 'f' | null;
+}
+
 export interface AppData {
   version: 2;
   settings: Settings;
@@ -79,4 +95,6 @@ export interface AppData {
   tombstones: Tombstone[];
   templates: WorkoutTemplate[];
   hiddenExercises: ExerciseVisibility[];
+  profile: Profile;
+  profileUpdatedAt: number;
 }

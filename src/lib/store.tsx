@@ -9,7 +9,7 @@ import {
 } from 'react';
 import { builtinIdForName } from './exercises';
 import { defaultData, loadData, saveData } from './storage';
-import type { AppData, Session, Tombstone, Units } from './types';
+import type { AppData, Profile, Session, Tombstone, Units } from './types';
 
 type Action =
   | { type: 'add-block'; date: string; blockId: string; exerciseId: string; at: number }
@@ -27,6 +27,9 @@ type Action =
   | { type: 'delete-template'; id: string; at: number }
   | { type: 'set-exercise-hidden'; id: string; hidden: boolean; at: number }
   | { type: 'apply-template'; date: string; blocks: Array<{ blockId: string; exerciseId: string }>; at: number }
+  | { type: 'add-cardio'; date: string; cardioId: string; durationMin: number; speedKmh: number; inclinePct: number; at: number }
+  | { type: 'remove-cardio'; date: string; cardioId: string; at: number }
+  | { type: 'set-profile'; profile: Profile; at: number }
   | { type: 'import-data'; data: AppData }
   | { type: 'apply-synced'; data: AppData }
   | { type: 'clear-all' };
@@ -44,7 +47,10 @@ function upsertSession(
   if (sessions.some((s) => s.date === date)) {
     return sessions.map((s) => (s.date === date ? { ...fn(s), updatedAt: at } : s));
   }
-  return [...sessions, { ...fn({ id: `session-${date}`, date, blocks: [], updatedAt: at }), updatedAt: at }];
+  return [
+    ...sessions,
+    { ...fn({ id: `session-${date}`, date, blocks: [], cardio: [], updatedAt: at }), updatedAt: at }
+  ];
 }
 
 function reducer(data: AppData, action: Action): AppData {
@@ -64,7 +70,7 @@ function reducer(data: AppData, action: Action): AppData {
             ? { ...s, blocks: s.blocks.filter((b) => b.id !== action.blockId), updatedAt: action.at }
             : s
         )
-        .filter((s) => s.blocks.length > 0);
+        .filter((s) => s.blocks.length > 0 || s.cardio.length > 0);
       return { ...data, sessions };
     }
     case 'add-set':
@@ -218,6 +224,34 @@ function reducer(data: AppData, action: Action): AppData {
           return { ...s, blocks: [...s.blocks, ...additions] };
         })
       };
+    case 'add-cardio':
+      return {
+        ...data,
+        sessions: upsertSession(data.sessions, action.date, action.at, (s) => ({
+          ...s,
+          cardio: [
+            ...s.cardio,
+            {
+              id: action.cardioId,
+              durationMin: action.durationMin,
+              speedKmh: action.speedKmh,
+              inclinePct: action.inclinePct
+            }
+          ]
+        }))
+      };
+    case 'remove-cardio': {
+      const sessions = data.sessions
+        .map((s) =>
+          s.date === action.date
+            ? { ...s, cardio: s.cardio.filter((c) => c.id !== action.cardioId), updatedAt: action.at }
+            : s
+        )
+        .filter((s) => s.blocks.length > 0 || s.cardio.length > 0);
+      return { ...data, sessions };
+    }
+    case 'set-profile':
+      return { ...data, profile: action.profile, profileUpdatedAt: action.at };
     case 'import-data':
       return action.data;
     case 'apply-synced':
@@ -302,6 +336,11 @@ export function useActions() {
           blocks: exerciseIds.map((exerciseId) => ({ blockId: uid(), exerciseId })),
           at: Date.now()
         }),
+      addCardio: (date: string, entry: { durationMin: number; speedKmh: number; inclinePct: number }) =>
+        dispatch({ type: 'add-cardio', date, cardioId: uid(), ...entry, at: Date.now() }),
+      removeCardio: (date: string, cardioId: string) =>
+        dispatch({ type: 'remove-cardio', date, cardioId, at: Date.now() }),
+      setProfile: (profile: Profile) => dispatch({ type: 'set-profile', profile, at: Date.now() }),
       importData: (data: AppData) => dispatch({ type: 'import-data', data }),
       applySynced: (data: AppData) => dispatch({ type: 'apply-synced', data }),
       clearAll: () => dispatch({ type: 'clear-all' })

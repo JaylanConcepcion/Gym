@@ -20,7 +20,9 @@ export function defaultData(): AppData {
     bodyWeights: [],
     tombstones: [],
     templates: [],
-    hiddenExercises: []
+    hiddenExercises: [],
+    profile: { heightCm: null, age: null, sex: null },
+    profileUpdatedAt: 0
   };
 }
 
@@ -41,6 +43,8 @@ export function normalizeData(raw: unknown): AppData | null {
     tombstones?: unknown[];
     templates?: unknown[];
     hiddenExercises?: unknown[];
+    profile?: { heightCm?: unknown; age?: unknown; sex?: unknown };
+    profileUpdatedAt?: number;
   };
   if (d.version !== 1 && d.version !== 2) return null;
   if (!d.settings || (d.settings.units !== 'lb' && d.settings.units !== 'kg')) return null;
@@ -63,6 +67,7 @@ export function normalizeData(raw: unknown): AppData | null {
       id: s.id,
       date: s.date,
       blocks: s.blocks,
+      cardio: Array.isArray(s.cardio) ? s.cardio : [],
       updatedAt: typeof s.updatedAt === 'number' ? s.updatedAt : 0
     })),
     bodyWeights: (d.bodyWeights as BodyWeightEntry[]).map((b) => ({
@@ -85,7 +90,13 @@ export function normalizeData(raw: unknown): AppData | null {
           hidden: !!h.hidden,
           updatedAt: typeof h.updatedAt === 'number' ? h.updatedAt : 0
         }))
-      : []
+      : [],
+    profile: {
+      heightCm: typeof d.profile?.heightCm === 'number' ? d.profile.heightCm : null,
+      age: typeof d.profile?.age === 'number' ? d.profile.age : null,
+      sex: d.profile?.sex === 'm' || d.profile?.sex === 'f' ? d.profile.sex : null
+    },
+    profileUpdatedAt: typeof d.profileUpdatedAt === 'number' ? d.profileUpdatedAt : 0
   };
 }
 

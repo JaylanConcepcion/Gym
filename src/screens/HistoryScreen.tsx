@@ -4,7 +4,9 @@ import { exerciseName } from '../lib/exercises';
 import { useActions, useApp } from '../lib/store';
 import { formatTonnage, formatWeightValue } from '../lib/units';
 import BodyWeightCard from '../components/BodyWeightCard';
+import CardioCard from '../components/CardioCard';
 import SessionEditor from '../components/SessionEditor';
+import { sessionCardioCalories } from '../lib/cardio';
 
 export default function HistoryScreen() {
   const { data } = useApp();
@@ -24,6 +26,7 @@ export default function HistoryScreen() {
         <div className="stack">
           <BodyWeightCard date={selected} />
           <SessionEditor date={selected} />
+          <CardioCard date={selected} />
           <button
             type="button"
             className="btn ghost danger block"
@@ -102,6 +105,12 @@ export default function HistoryScreen() {
                 <div className="sub">
                   {s.blocks.map((b) => `${exerciseName(data, b.exerciseId)} · ${b.sets.length}×`).join('   ')}
                 </div>
+                {s.cardio.length > 0 && (
+                  <div className="sub dim">
+                    Cardio · {Math.round(s.cardio.reduce((n, c) => n + c.durationMin, 0))} min
+                    {sessionCardioCalories(data, s) != null && <> · ≈{sessionCardioCalories(data, s)} kcal</>}
+                  </div>
+                )}
                 <div className="sub dim">{formatTonnage(tonnageKg, units)} total</div>
               </div>
             );

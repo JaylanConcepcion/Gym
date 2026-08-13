@@ -16,7 +16,7 @@ import type {
  */
 
 function sessionWeight(s: Session): number {
-  return s.blocks.reduce((n, b) => n + b.sets.length, 0);
+  return s.blocks.reduce((n, b) => n + b.sets.length, 0) + s.cardio.length;
 }
 
 function newerSession(a: Session, b: Session): Session {
@@ -98,11 +98,14 @@ export function mergeData(local: AppData, remote: AppData): AppData {
   const hiddenExercises = [...visById.values()].sort((a, b) => a.id.localeCompare(b.id));
 
   const settingsFrom = remote.settingsUpdatedAt > local.settingsUpdatedAt ? remote : local;
+  const profileFrom = remote.profileUpdatedAt > local.profileUpdatedAt ? remote : local;
 
   return {
     version: 2,
     settings: { units: settingsFrom.settings.units },
     settingsUpdatedAt: Math.max(local.settingsUpdatedAt, remote.settingsUpdatedAt),
+    profile: { ...profileFrom.profile },
+    profileUpdatedAt: Math.max(local.profileUpdatedAt, remote.profileUpdatedAt),
     customExercises,
     sessions,
     bodyWeights,
@@ -118,6 +121,8 @@ export function canonicalize(data: AppData): string {
     version: data.version,
     settings: { units: data.settings.units },
     settingsUpdatedAt: data.settingsUpdatedAt,
+    profile: data.profile,
+    profileUpdatedAt: data.profileUpdatedAt,
     customExercises: [...data.customExercises].sort((a, b) => a.id.localeCompare(b.id)),
     sessions: [...data.sessions].sort((a, b) => a.date.localeCompare(b.date)),
     bodyWeights: [...data.bodyWeights].sort((a, b) => a.date.localeCompare(b.date)),

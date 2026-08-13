@@ -1,9 +1,11 @@
 import { useRef, useState, type ChangeEvent } from 'react';
+import { CM_PER_IN } from '../lib/cardio';
 import { formatRelativeTime, todayISO } from '../lib/dates';
 import { TOKEN_URL } from '../lib/gist';
 import { normalizeData } from '../lib/storage';
 import { useActions, useApp } from '../lib/store';
 import { useSync } from '../lib/sync';
+import { roundTo } from '../lib/units';
 import type { Units } from '../lib/types';
 
 export default function SettingsScreen() {
@@ -13,6 +15,28 @@ export default function SettingsScreen() {
   const units = data.settings.units;
   const [tokenInput, setTokenInput] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const heightUnit = units === 'lb' ? 'in' : 'cm';
+  const [heightStr, setHeightStr] = useState(() =>
+    data.profile.heightCm == null
+      ? ''
+      : String(roundTo(units === 'lb' ? data.profile.heightCm / CM_PER_IN : data.profile.heightCm, 0))
+  );
+  const [ageStr, setAgeStr] = useState(() => (data.profile.age == null ? '' : String(data.profile.age)));
+  const [sex, setSex] = useState<'m' | 'f' | null>(data.profile.sex);
+  const [profileSaved, setProfileSaved] = useState(false);
+
+  function saveProfile() {
+    const h = parseFloat(heightStr.replace(',', '.'));
+    const a = parseInt(ageStr, 10);
+    actions.setProfile({
+      heightCm: Number.isFinite(h) && h > 0 ? (units === 'lb' ? h * CM_PER_IN : h) : null,
+      age: Number.isFinite(a) && a > 0 ? a : null,
+      sex
+    });
+    setProfileSaved(true);
+    setTimeout(() => setProfileSaved(false), 2000);
+  }
 
   async function connectSync() {
     const ok = await sync.connect(tokenInput);
@@ -157,6 +181,59 @@ export default function SettingsScreen() {
               {sync.error && <div className="sync-error">{sync.error}</div>}
             </>
           )}
+        </section>
+
+        <section className="card">
+          <h3>Profile</h3>
+          <div className="sub dim" style={{ marginBottom: 10 }}>
+            Used together with your logged bodyweight to estimate cardio calories.
+          </div>
+          <div className="row" style={{ marginBottom: 10 }}>
+            <label className="field">
+              <span>Height ({heightUnit})</span>
+              <input
+                className="input"
+                inputMode="decimal"
+                placeholder={units === 'lb' ? '70' : '178'}
+                value={heightStr}
+                onChange={(e) => setHeightStr(e.target.value)}
+              />
+            </label>
+            <label className="field">
+              <span>Age</span>
+              <input
+                className="input"
+                inputMode="numeric"
+                placeholder="25"
+                value={ageStr}
+                onChange={(e) => setAgeStr(e.target.value)}
+              />
+            </label>
+          </div>
+          <div className="field" style={{ marginBottom: 10 }}>
+            <span>Sex (for the calorie formula)</span>
+            <div className="seg">
+              {(
+                [
+                  { v: 'm', label: 'Male' },
+                  { v: 'f', label: 'Female' },
+                  { v: null, label: 'Skip' }
+                ] as Array<{ v: 'm' | 'f' | null; label: string }>
+              ).map((o) => (
+                <button
+                  key={o.label}
+                  type="button"
+                  className={`seg-btn${sex === o.v ? ' active' : ''}`}
+                  onClick={() => setSex(o.v)}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <button type="button" className="btn ghost" onClick={saveProfile}>
+            {profileSaved ? 'Saved ✓' : 'Save profile'}
+          </button>
         </section>
 
         <section className="card">

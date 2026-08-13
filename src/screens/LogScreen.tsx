@@ -2,6 +2,7 @@ import { formatLongDate, todayISO } from '../lib/dates';
 import { useApp } from '../lib/store';
 import { formatTonnage } from '../lib/units';
 import BodyWeightCard from '../components/BodyWeightCard';
+import CardioCard from '../components/CardioCard';
 import SessionEditor from '../components/SessionEditor';
 
 export default function LogScreen() {
@@ -31,6 +32,7 @@ export default function LogScreen() {
       <div className="stack">
         <BodyWeightCard date={today} />
         <SessionEditor date={today} />
+        <CardioCard date={today} />
       </div>
     </div>
   );
