@@ -16,21 +16,37 @@ export default function SettingsScreen() {
   const [tokenInput, setTokenInput] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const heightUnit = units === 'lb' ? 'in' : 'cm';
-  const [heightStr, setHeightStr] = useState(() =>
-    data.profile.heightCm == null
-      ? ''
-      : String(roundTo(units === 'lb' ? data.profile.heightCm / CM_PER_IN : data.profile.heightCm, 0))
+  const [heightFtStr, setHeightFtStr] = useState(() => {
+    if (data.profile.heightCm == null) return '';
+    const totalIn = Math.round(data.profile.heightCm / CM_PER_IN);
+    return String(Math.floor(totalIn / 12));
+  });
+  const [heightInStr, setHeightInStr] = useState(() => {
+    if (data.profile.heightCm == null) return '';
+    const totalIn = Math.round(data.profile.heightCm / CM_PER_IN);
+    return String(totalIn % 12);
+  });
+  const [heightCmStr, setHeightCmStr] = useState(() =>
+    data.profile.heightCm == null ? '' : String(roundTo(data.profile.heightCm, 0))
   );
   const [ageStr, setAgeStr] = useState(() => (data.profile.age == null ? '' : String(data.profile.age)));
   const [sex, setSex] = useState<'m' | 'f' | null>(data.profile.sex);
   const [profileSaved, setProfileSaved] = useState(false);
 
   function saveProfile() {
-    const h = parseFloat(heightStr.replace(',', '.'));
+    let heightCm: number | null = null;
+    if (units === 'lb') {
+      const ft = parseFloat(heightFtStr.replace(',', '.'));
+      const inches = parseFloat(heightInStr.replace(',', '.'));
+      const totalIn = (Number.isFinite(ft) ? ft * 12 : 0) + (Number.isFinite(inches) ? inches : 0);
+      heightCm = totalIn > 0 ? totalIn * CM_PER_IN : null;
+    } else {
+      const cm = parseFloat(heightCmStr.replace(',', '.'));
+      heightCm = Number.isFinite(cm) && cm > 0 ? cm : null;
+    }
     const a = parseInt(ageStr, 10);
     actions.setProfile({
-      heightCm: Number.isFinite(h) && h > 0 ? (units === 'lb' ? h * CM_PER_IN : h) : null,
+      heightCm,
       age: Number.isFinite(a) && a > 0 ? a : null,
       sex
     });
@@ -189,16 +205,41 @@ export default function SettingsScreen() {
             Used together with your logged bodyweight to estimate cardio calories.
           </div>
           <div className="row" style={{ marginBottom: 10 }}>
-            <label className="field">
-              <span>Height ({heightUnit})</span>
-              <input
-                className="input"
-                inputMode="decimal"
-                placeholder={units === 'lb' ? '70' : '178'}
-                value={heightStr}
-                onChange={(e) => setHeightStr(e.target.value)}
-              />
-            </label>
+            {units === 'lb' ? (
+              <>
+                <label className="field">
+                  <span>Height (ft)</span>
+                  <input
+                    className="input"
+                    inputMode="numeric"
+                    placeholder="5"
+                    value={heightFtStr}
+                    onChange={(e) => setHeightFtStr(e.target.value)}
+                  />
+                </label>
+                <label className="field">
+                  <span>(in)</span>
+                  <input
+                    className="input"
+                    inputMode="numeric"
+                    placeholder="10"
+                    value={heightInStr}
+                    onChange={(e) => setHeightInStr(e.target.value)}
+                  />
+                </label>
+              </>
+            ) : (
+              <label className="field">
+                <span>Height (cm)</span>
+                <input
+                  className="input"
+                  inputMode="decimal"
+                  placeholder="178"
+                  value={heightCmStr}
+                  onChange={(e) => setHeightCmStr(e.target.value)}
+                />
+              </label>
+            )}
             <label className="field">
               <span>Age</span>
               <input
