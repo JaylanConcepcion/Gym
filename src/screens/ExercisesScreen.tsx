@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import TemplateEditor, { type TemplateDraft } from '../components/TemplateEditor';
 import { todayISO } from '../lib/dates';
-import { exerciseName, getAllExercises, hiddenExerciseIds } from '../lib/exercises';
+import { exerciseName, hiddenExerciseIds } from '../lib/exercises';
 import { allLoggedSets } from '../lib/stats';
 import { useActions, useApp } from '../lib/store';
 
@@ -100,14 +100,15 @@ export default function ExercisesScreen({ onGoToLog }: { onGoToLog: () => void }
         </section>
 
         <section className="card">
-          <h3>All exercises</h3>
+          <h3>My exercises</h3>
           <div className="sub dim" style={{ marginBottom: 8 }}>
-            Add your own lifts, or hide presets you never do — history and graphs are always kept.
+            Your list, your lifts. Hide ones you're not running right now (history is kept); delete
+            is available while a lift has no logged sets.
           </div>
           <div className="row" style={{ marginBottom: 8 }}>
             <input
               className="input"
-              placeholder="New exercise name"
+              placeholder="New exercise name (e.g. Squat)"
               value={newExercise}
               onChange={(e) => setNewExercise(e.target.value)}
             />
@@ -115,18 +116,14 @@ export default function ExercisesScreen({ onGoToLog }: { onGoToLog: () => void }
               Add
             </button>
           </div>
-          {getAllExercises(data).map((e) => {
+          {data.customExercises.length === 0 && (
+            <div className="empty">Nothing here yet — add your first lift above.</div>
+          )}
+          {data.customExercises.map((e) => {
             const isHidden = hidden.has(e.id);
             return (
               <div key={e.id} className={`list-row static${isHidden ? ' muted' : ''}`}>
-                <span>
-                  {e.name}
-                  {e.isCustom && (
-                    <span className="tag" style={{ marginLeft: 8 }}>
-                      custom
-                    </span>
-                  )}
-                </span>
+                <span>{e.name}</span>
                 <span className="row" style={{ gap: 6 }}>
                   <button
                     type="button"
@@ -135,16 +132,14 @@ export default function ExercisesScreen({ onGoToLog }: { onGoToLog: () => void }
                   >
                     {isHidden ? 'Show' : 'Hide'}
                   </button>
-                  {e.isCustom && (
-                    <button
-                      type="button"
-                      className="icon-btn small"
-                      onClick={() => removeExercise(e.id, e.name)}
-                      aria-label={`Delete ${e.name}`}
-                    >
-                      ✕
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    className="icon-btn small"
+                    onClick={() => removeExercise(e.id, e.name)}
+                    aria-label={`Delete ${e.name}`}
+                  >
+                    ✕
+                  </button>
                 </span>
               </div>
             );

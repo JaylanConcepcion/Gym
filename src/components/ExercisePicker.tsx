@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { getAllExercises, visibleExercises } from '../lib/exercises';
+import { visibleExercises } from '../lib/exercises';
 import { useActions, useApp } from '../lib/store';
 
 export default function ExercisePicker({
@@ -16,8 +16,7 @@ export default function ExercisePicker({
   const options = visibleExercises(data);
   const q = query.trim().toLowerCase();
   const filtered = q ? options.filter((e) => e.name.toLowerCase().includes(q)) : options;
-  // Check against every exercise (even hidden ones) so we never create duplicates.
-  const hasExact = getAllExercises(data).some((e) => e.name.toLowerCase() === q);
+  const hasExact = options.some((e) => e.name.toLowerCase() === q);
 
   return (
     <div className="sheet-overlay" onClick={onClose}>
@@ -48,9 +47,11 @@ export default function ExercisePicker({
           {filtered.map((e) => (
             <button key={e.id} type="button" className="list-row" onClick={() => onPick(e.id)}>
               <span>{e.name}</span>
-              {e.isCustom && <span className="tag">custom</span>}
             </button>
           ))}
+          {options.length === 0 && !q && (
+            <div className="empty">No exercises yet — type a name above and create your first lift.</div>
+          )}
         </div>
       </div>
     </div>

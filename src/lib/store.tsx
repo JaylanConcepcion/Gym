@@ -7,6 +7,7 @@ import {
   type Dispatch,
   type ReactNode
 } from 'react';
+import { builtinIdForName } from './exercises';
 import { defaultData, loadData, saveData } from './storage';
 import type { AppData, Session, Tombstone, Units } from './types';
 
@@ -147,6 +148,8 @@ function reducer(data: AppData, action: Action): AppData {
         settingsUpdatedAt: action.at
       };
     case 'add-custom-exercise':
+      // Re-creating an existing id (e.g. a legacy lift by name) is a no-op.
+      if (data.customExercises.some((e) => e.id === action.id)) return data;
       return {
         ...data,
         customExercises: [
@@ -258,8 +261,11 @@ export function useActions() {
         dispatch({ type: 'set-bodyweight', date, weightKg, at: Date.now() }),
       setUnits: (units: Units) => dispatch({ type: 'set-units', units, at: Date.now() }),
       addCustomExercise: (name: string): string => {
-        const id = `custom-${uid()}`;
-        dispatch({ type: 'add-custom-exercise', id, name, at: Date.now() });
+        // Reuse the legacy id when the name matches, so old history reconnects.
+        const id = builtinIdForName(name) ?? `custom-${uid()}`;
+        dispatch({ type: 'add-custom-exercise', id, name: name.trim(), at: Date.now() });
+        // Creating a lift always means the user wants it visible again.
+        dispatch({ type: 'set-exercise-hidden', id, hidden: false, at: Date.now() });
         return id;
       },
       removeCustomExercise: (id: string) =>

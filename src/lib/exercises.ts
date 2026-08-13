@@ -1,5 +1,11 @@
 import type { AppData, ExerciseDef } from './types';
 
+/**
+ * No presets are offered anymore — the user builds their own list. This table
+ * remains for two jobs: resolving names of legacy logged data, and reusing a
+ * stable id when the user re-creates one of these by name (so old history
+ * reconnects to the new entry).
+ */
 export const BUILT_IN_EXERCISES: ExerciseDef[] = [
   { id: 'squat', name: 'Squat' },
   { id: 'bench', name: 'Bench Press' },
@@ -20,22 +26,28 @@ export const BUILT_IN_EXERCISES: ExerciseDef[] = [
 
 export const BIG3 = ['squat', 'bench', 'deadlift'];
 
-export function getAllExercises(data: AppData): ExerciseDef[] {
-  return [...BUILT_IN_EXERCISES, ...data.customExercises];
+export function exerciseName(data: AppData, id: string): string {
+  return (
+    data.customExercises.find((e) => e.id === id)?.name ??
+    BUILT_IN_EXERCISES.find((e) => e.id === id)?.name ??
+    'Unknown exercise'
+  );
 }
 
-export function exerciseName(data: AppData, id: string): string {
-  return getAllExercises(data).find((e) => e.id === id)?.name ?? 'Unknown exercise';
+/** Stable id to reuse when the user creates a lift matching a legacy name. */
+export function builtinIdForName(name: string): string | null {
+  const n = name.trim().toLowerCase();
+  return BUILT_IN_EXERCISES.find((e) => e.name.toLowerCase() === n)?.id ?? null;
 }
 
 export function hiddenExerciseIds(data: AppData): Set<string> {
   return new Set(data.hiddenExercises.filter((h) => h.hidden).map((h) => h.id));
 }
 
-/** Exercises offered by the picker (history keeps resolving hidden ones). */
+/** Exercises offered by the picker: the user's own list, minus hidden ones. */
 export function visibleExercises(data: AppData): ExerciseDef[] {
   const hidden = hiddenExerciseIds(data);
-  return getAllExercises(data).filter((e) => !hidden.has(e.id));
+  return data.customExercises.filter((e) => !hidden.has(e.id));
 }
 
 /** Chart accent color keyed off the lift family. */

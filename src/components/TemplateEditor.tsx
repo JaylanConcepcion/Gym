@@ -56,6 +56,9 @@ export default function TemplateEditor({
           autoFocus
         />
         <div className="sheet-list">
+          {pickable.length === 0 && extra.length === 0 && (
+            <div className="empty">No exercises yet — add some in the Exercises tab first.</div>
+          )}
           {[...pickable, ...extra].map((e) => {
             const on = selected.includes(e.id);
             return (
