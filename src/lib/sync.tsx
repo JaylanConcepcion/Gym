@@ -83,14 +83,18 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         }
       }
 
+      // Merge inside the reducer (against the true latest state) rather than
+      // replacing state with a snapshot — edits made while this sync was in
+      // flight survive. If our pushed content misses such a late edit, the
+      // change-debounce effect notices the canonical mismatch and runs one
+      // more sync round, which converges (merge is idempotent).
       const local = dataRef.current;
-      const finalData = remote ? mergeData(local, remote) : local;
-      const finalCanon = canonicalize(finalData);
-
-      if (finalCanon !== canonicalize(local)) {
-        actions.applySynced(finalData);
+      if (remote && canonicalize(mergeData(local, remote)) !== canonicalize(local)) {
+        actions.mergeRemote(remote);
       }
 
+      const finalData = remote ? mergeData(local, remote) : local;
+      const finalCanon = canonicalize(finalData);
       const remoteCanon = remote ? canonicalize(remote) : null;
       if (finalCanon !== remoteCanon) {
         try {

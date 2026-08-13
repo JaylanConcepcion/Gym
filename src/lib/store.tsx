@@ -8,6 +8,7 @@ import {
   type ReactNode
 } from 'react';
 import { builtinIdForName } from './exercises';
+import { mergeData } from './merge';
 import { defaultData, loadData, saveData } from './storage';
 import type { AppData, Profile, Session, Tombstone, Units } from './types';
 
@@ -31,7 +32,7 @@ type Action =
   | { type: 'remove-cardio'; date: string; cardioId: string; at: number }
   | { type: 'set-profile'; profile: Profile; at: number }
   | { type: 'import-data'; data: AppData }
-  | { type: 'apply-synced'; data: AppData }
+  | { type: 'merge-remote'; remote: AppData }
   | { type: 'clear-all' };
 
 function withTombstone(tombstones: Tombstone[], t: Tombstone): Tombstone[] {
@@ -254,12 +255,18 @@ function reducer(data: AppData, action: Action): AppData {
       return { ...data, profile: action.profile, profileUpdatedAt: action.at };
     case 'import-data':
       return action.data;
-    case 'apply-synced':
-      return action.data;
+    case 'merge-remote':
+      // The merge happens here, against the true current state, so edits or
+      // deletions made while a sync was in flight can never be clobbered by
+      // a stale snapshot.
+      return mergeData(data, action.remote);
     case 'clear-all':
       return defaultData();
   }
 }
+
+/** Exported for tests. */
+export { reducer as _reducer };
 
 const AppContext = createContext<{ data: AppData; dispatch: Dispatch<Action> } | null>(null);
 
@@ -342,7 +349,7 @@ export function useActions() {
         dispatch({ type: 'remove-cardio', date, cardioId, at: Date.now() }),
       setProfile: (profile: Profile) => dispatch({ type: 'set-profile', profile, at: Date.now() }),
       importData: (data: AppData) => dispatch({ type: 'import-data', data }),
-      applySynced: (data: AppData) => dispatch({ type: 'apply-synced', data }),
+      mergeRemote: (remote: AppData) => dispatch({ type: 'merge-remote', remote }),
       clearAll: () => dispatch({ type: 'clear-all' })
     }),
     [dispatch]
