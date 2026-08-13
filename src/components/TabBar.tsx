@@ -1,6 +1,6 @@
 import type { ReactElement } from 'react';
 
-export type Tab = 'log' | 'history' | 'progress' | 'settings';
+export type Tab = 'log' | 'history' | 'progress' | 'exercises' | 'settings';
 
 function Icon({ children }: { children: ReactElement | ReactElement[] }) {
   return (
@@ -47,6 +47,16 @@ const TABS: Array<{ id: Tab; label: string; icon: ReactElement }> = [
       <Icon>
         <path d="M3 17l6-6 4 4 8-8" />
         <path d="M14 7h7v7" />
+      </Icon>
+    )
+  },
+  {
+    id: 'exercises',
+    label: 'Exercises',
+    icon: (
+      <Icon>
+        <rect x="4" y="3" width="16" height="18" rx="3" />
+        <path d="M8 8h8M8 12h8M8 16h5" />
       </Icon>
     )
   },

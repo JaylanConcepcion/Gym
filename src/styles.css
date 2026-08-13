@@ -714,6 +714,25 @@ h3 {
   color: var(--text-dim);
 }
 
+.tpl-static {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.tpl-static:last-of-type {
+  border-bottom: none;
+}
+
+.tpl-info {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
 .chip-divider {
   width: 1px;
   align-self: stretch;
