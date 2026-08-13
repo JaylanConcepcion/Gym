@@ -14,12 +14,12 @@ import {
 import { addDaysISO, formatMonthLabel, formatShortDate, todayISO } from '../lib/dates';
 import { exerciseName } from '../lib/exercises';
 import {
-  bestE1rmByPeriod,
   bodyWeightSeries,
   exercisesWithData,
   prRecords,
   tonnageByPeriod,
   topSetByDate,
+  topSetE1rmByPeriod,
   type Period
 } from '../lib/stats';
 import { useApp } from '../lib/store';
@@ -202,7 +202,7 @@ export default function ProgressScreen() {
     () =>
       selection.map((id) => ({
         id,
-        points: bestE1rmByPeriod(data, id, period).filter((p) => !cutoff || p.key >= cutoff)
+        points: topSetE1rmByPeriod(data, id, period).filter((p) => !cutoff || p.key >= cutoff)
       })),
     [data, selection, period, cutoff]
   );
@@ -345,7 +345,7 @@ export default function ProgressScreen() {
           )}
 
           {flags.e1rm && selection.length > 0 && (
-            <ChartCard title={`Estimated 1RM — best per ${periodNoun}`}>
+            <ChartCard title={`Estimated 1RM — top set per ${periodNoun}`}>
               <LineChart data={combinedE1rm} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
                 <CartesianGrid stroke="#23262e" strokeDasharray="3 3" vertical={false} />
                 <XAxis

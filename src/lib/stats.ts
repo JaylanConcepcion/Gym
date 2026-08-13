@@ -56,21 +56,26 @@ export function periodKey(dateStr: string, period: Period): string {
   return `${dateStr.slice(0, 7)}-01`;
 }
 
-/** Best e1RM per day/week/month. The progression trend line. */
-export function bestE1rmByPeriod(
+/**
+ * e1RM of the top set (heaviest weight, tie → more reps) per day/week/month.
+ * Only the top set drives the trend line, so back-off volume never skews it.
+ */
+export function topSetE1rmByPeriod(
   data: AppData,
   exerciseId: string,
   period: Period
 ): Array<{ key: string; e1rmKg: number }> {
-  const byKey = new Map<string, number>();
+  const byKey = new Map<string, LoggedSet>();
   for (const s of allLoggedSets(data)) {
     if (s.exerciseId !== exerciseId) continue;
     const k = periodKey(s.date, period);
     const cur = byKey.get(k);
-    if (cur == null || s.e1rmKg > cur) byKey.set(k, s.e1rmKg);
+    if (!cur || s.weightKg > cur.weightKg || (s.weightKg === cur.weightKg && s.reps > cur.reps)) {
+      byKey.set(k, s);
+    }
   }
   return [...byKey.entries()]
-    .map(([key, e1rmKg]) => ({ key, e1rmKg }))
+    .map(([key, s]) => ({ key, e1rmKg: s.e1rmKg }))
     .sort((a, b) => a.key.localeCompare(b.key));
 }
 

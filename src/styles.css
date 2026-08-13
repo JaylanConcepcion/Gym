@@ -343,6 +343,76 @@ h3 {
   white-space: nowrap;
 }
 
+/* inline set rows */
+
+.set-grid {
+  display: grid;
+  grid-template-columns: 22px 1fr 1fr 74px 56px 28px;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.set-grid.head {
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+}
+
+.set-grid.draft {
+  border-top: 1px dashed var(--border);
+  padding-top: 8px;
+  margin-bottom: 0;
+}
+
+.input.compact {
+  padding: 9px 6px;
+  text-align: center;
+  border-radius: 10px;
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+.rpe-select {
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.set-num {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-dim);
+  text-align: center;
+}
+
+.set-e1rm-cell {
+  font-size: 11.5px;
+  color: var(--text-dim);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.add-set-btn {
+  width: 28px;
+  height: 34px;
+  border-radius: 9px;
+  background: var(--accent);
+  color: #1b0606;
+  font-size: 18px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.add-set-btn:disabled {
+  opacity: 0.35;
+}
+
 .set-editor {
   display: grid;
   gap: 10px;
