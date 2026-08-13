@@ -6,8 +6,8 @@
   --border: #262a32;
   --text: #f2f3f5;
   --text-dim: #9aa1ac;
-  --accent: #f97316;
-  --accent-soft: rgba(249, 115, 22, 0.14);
+  --accent: #ef4444;
+  --accent-soft: rgba(239, 68, 68, 0.15);
   --green: #34d399;
   --red: #f87171;
   --radius: 16px;
@@ -157,7 +157,7 @@ h3 {
 
 .btn.accent {
   background: var(--accent);
-  color: #190b02;
+  color: #1b0606;
 }
 
 .btn.ghost {
@@ -645,7 +645,7 @@ h3 {
 
 .seg-btn.active {
   background: var(--accent);
-  color: #190b02;
+  color: #1b0606;
 }
 
 /* ---------- settings ---------- */
@@ -697,7 +697,7 @@ h3 {
   align-items: center;
   justify-content: center;
   font-size: 12px;
-  color: #190b02;
+  color: #1b0606;
   flex: none;
 }
 

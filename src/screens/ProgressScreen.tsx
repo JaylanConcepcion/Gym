@@ -99,7 +99,7 @@ export default function ProgressScreen() {
   );
   const prs = useMemo(() => (active ? prRecords(data, active) : null), [data, active]);
 
-  const color = active ? colorForExercise(exerciseName(data, active)) : '#f97316';
+  const color = active ? colorForExercise(exerciseName(data, active)) : '#ef4444';
 
   const trendData = trend.map((p) => ({
     label: labelFor(p.key),

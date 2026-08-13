@@ -53,7 +53,7 @@ export function visibleExercises(data: AppData): ExerciseDef[] {
 /** Chart accent color keyed off the lift family. */
 export function colorForExercise(name: string): string {
   const n = name.toLowerCase();
-  if (n.includes('squat')) return '#f97316';
+  if (n.includes('squat')) return '#ef4444';
   if (n.includes('bench') || n.includes('press')) return '#38bdf8';
   if (n.includes('deadlift') || n.includes('rdl') || n.includes('pull')) return '#f43f5e';
   return '#a78bfa';
