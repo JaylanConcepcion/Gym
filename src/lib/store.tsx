@@ -39,18 +39,39 @@ function withTombstone(tombstones: Tombstone[], t: Tombstone): Tombstone[] {
   return [...tombstones.filter((x) => !(x.type === t.type && x.key === t.key)), t];
 }
 
+/**
+ * Lamport-style timestamp: strictly newer than anything this device has seen
+ * for the entity, even if another device's clock runs ahead of ours. Without
+ * this, a workout edited on a fast-clock device could out-timestamp its own
+ * deletion and resurrect on every sync.
+ */
+function bump(at: number, prev: number | undefined | null): number {
+  return Math.max(at, (prev ?? 0) + 1);
+}
+
+function tombFor(tombstones: Tombstone[], type: Tombstone['type'], key: string): number {
+  return tombstones.find((t) => t.type === type && t.key === key)?.deletedAt ?? 0;
+}
+
 function upsertSession(
-  sessions: Session[],
+  data: AppData,
   date: string,
   at: number,
   fn: (s: Session) => Session
 ): Session[] {
-  if (sessions.some((s) => s.date === date)) {
-    return sessions.map((s) => (s.date === date ? { ...fn(s), updatedAt: at } : s));
+  const existing = data.sessions.find((s) => s.date === date);
+  // Beat both the previous edit and any deletion tombstone for this day, so
+  // re-logging a deleted day can't be swallowed by its old tombstone.
+  const stamped = bump(at, Math.max(existing?.updatedAt ?? 0, tombFor(data.tombstones, 'session', date)));
+  if (existing) {
+    return data.sessions.map((s) => (s.date === date ? { ...fn(s), updatedAt: stamped } : s));
   }
   return [
-    ...sessions,
-    { ...fn({ id: `session-${date}`, date, blocks: [], cardio: [], updatedAt: at }), updatedAt: at }
+    ...data.sessions,
+    {
+      ...fn({ id: `session-${date}`, date, blocks: [], cardio: [], updatedAt: stamped }),
+      updatedAt: stamped
+    }
   ];
 }
 
@@ -59,7 +80,7 @@ function reducer(data: AppData, action: Action): AppData {
     case 'add-block':
       return {
         ...data,
-        sessions: upsertSession(data.sessions, action.date, action.at, (s) => ({
+        sessions: upsertSession(data, action.date, action.at, (s) => ({
           ...s,
           blocks: [...s.blocks, { id: action.blockId, exerciseId: action.exerciseId, sets: [] }]
         }))
@@ -68,7 +89,11 @@ function reducer(data: AppData, action: Action): AppData {
       const sessions = data.sessions
         .map((s) =>
           s.date === action.date
-            ? { ...s, blocks: s.blocks.filter((b) => b.id !== action.blockId), updatedAt: action.at }
+            ? {
+                ...s,
+                blocks: s.blocks.filter((b) => b.id !== action.blockId),
+                updatedAt: bump(action.at, s.updatedAt)
+              }
             : s
         )
         .filter((s) => s.blocks.length > 0 || s.cardio.length > 0);
@@ -77,7 +102,7 @@ function reducer(data: AppData, action: Action): AppData {
     case 'add-set':
       return {
         ...data,
-        sessions: upsertSession(data.sessions, action.date, action.at, (s) => ({
+        sessions: upsertSession(data, action.date, action.at, (s) => ({
           ...s,
           blocks: s.blocks.map((b) =>
             b.id !== action.blockId
@@ -95,7 +120,7 @@ function reducer(data: AppData, action: Action): AppData {
     case 'update-set':
       return {
         ...data,
-        sessions: upsertSession(data.sessions, action.date, action.at, (s) => ({
+        sessions: upsertSession(data, action.date, action.at, (s) => ({
           ...s,
           blocks: s.blocks.map((b) =>
             b.id !== action.blockId
@@ -114,24 +139,28 @@ function reducer(data: AppData, action: Action): AppData {
     case 'remove-set':
       return {
         ...data,
-        sessions: upsertSession(data.sessions, action.date, action.at, (s) => ({
+        sessions: upsertSession(data, action.date, action.at, (s) => ({
           ...s,
           blocks: s.blocks.map((b) =>
             b.id !== action.blockId ? b : { ...b, sets: b.sets.filter((set) => set.id !== action.setId) }
           )
         }))
       };
-    case 'delete-session':
+    case 'delete-session': {
+      const victim = data.sessions.find((s) => s.date === action.date);
       return {
         ...data,
         sessions: data.sessions.filter((s) => s.date !== action.date),
         tombstones: withTombstone(data.tombstones, {
           type: 'session',
           key: action.date,
-          deletedAt: action.at
+          // Strictly newer than the copy being deleted — beats clock skew.
+          deletedAt: bump(action.at, victim?.updatedAt)
         })
       };
+    }
     case 'set-bodyweight': {
+      const existing = data.bodyWeights.find((b) => b.date === action.date);
       const rest = data.bodyWeights.filter((b) => b.date !== action.date);
       if (action.weightKg == null) {
         return {
@@ -140,24 +169,29 @@ function reducer(data: AppData, action: Action): AppData {
           tombstones: withTombstone(data.tombstones, {
             type: 'bodyweight',
             key: action.date,
-            deletedAt: action.at
+            deletedAt: bump(action.at, existing?.updatedAt)
           })
         };
       }
+      const stamped = bump(
+        action.at,
+        Math.max(existing?.updatedAt ?? 0, tombFor(data.tombstones, 'bodyweight', action.date))
+      );
       return {
         ...data,
-        bodyWeights: [...rest, { date: action.date, weightKg: action.weightKg, updatedAt: action.at }]
+        bodyWeights: [...rest, { date: action.date, weightKg: action.weightKg, updatedAt: stamped }]
       };
     }
     case 'set-units':
       return {
         ...data,
         settings: { ...data.settings, units: action.units },
-        settingsUpdatedAt: action.at
+        settingsUpdatedAt: bump(action.at, data.settingsUpdatedAt)
       };
-    case 'add-custom-exercise':
+    case 'add-custom-exercise': {
       // Re-creating an existing id (e.g. a legacy lift by name) is a no-op.
       if (data.customExercises.some((e) => e.id === action.id)) return data;
+      const stamped = bump(action.at, tombFor(data.tombstones, 'exercise', action.id));
       return {
         ...data,
         customExercises: [
@@ -167,57 +201,78 @@ function reducer(data: AppData, action: Action): AppData {
             name: action.name,
             isCustom: true,
             tags: action.tags,
-            createdAt: action.at,
-            updatedAt: action.at
+            createdAt: stamped,
+            updatedAt: stamped
           }
         ]
       };
+    }
     case 'update-exercise':
       return {
         ...data,
         customExercises: data.customExercises.map((e) =>
-          e.id === action.id ? { ...e, name: action.name, tags: action.tags, updatedAt: action.at } : e
+          e.id === action.id
+            ? {
+                ...e,
+                name: action.name,
+                tags: action.tags,
+                updatedAt: bump(action.at, Math.max(e.updatedAt ?? 0, e.createdAt ?? 0))
+              }
+            : e
         )
       };
-    case 'remove-custom-exercise':
+    case 'remove-custom-exercise': {
+      const victim = data.customExercises.find((e) => e.id === action.id);
       return {
         ...data,
         customExercises: data.customExercises.filter((e) => e.id !== action.id),
         tombstones: withTombstone(data.tombstones, {
           type: 'exercise',
           key: action.id,
-          deletedAt: action.at
+          deletedAt: bump(action.at, Math.max(victim?.updatedAt ?? 0, victim?.createdAt ?? 0))
         })
       };
+    }
     case 'save-template': {
-      const tpl = { id: action.id, name: action.name, exerciseIds: action.exerciseIds, updatedAt: action.at };
-      const exists = data.templates.some((t) => t.id === action.id);
+      const existing = data.templates.find((t) => t.id === action.id);
+      const stamped = bump(
+        action.at,
+        Math.max(existing?.updatedAt ?? 0, tombFor(data.tombstones, 'template', action.id))
+      );
+      const tpl = { id: action.id, name: action.name, exerciseIds: action.exerciseIds, updatedAt: stamped };
       return {
         ...data,
-        templates: exists
+        templates: existing
           ? data.templates.map((t) => (t.id === action.id ? tpl : t))
           : [...data.templates, tpl]
       };
     }
-    case 'delete-template':
+    case 'delete-template': {
+      const victim = data.templates.find((t) => t.id === action.id);
       return {
         ...data,
         templates: data.templates.filter((t) => t.id !== action.id),
         tombstones: withTombstone(data.tombstones, {
           type: 'template',
           key: action.id,
-          deletedAt: action.at
+          deletedAt: bump(action.at, victim?.updatedAt)
         })
       };
+    }
     case 'set-exercise-hidden': {
-      const entry = { id: action.id, hidden: action.hidden, updatedAt: action.at };
+      const existing = data.hiddenExercises.find((h) => h.id === action.id);
+      const entry = {
+        id: action.id,
+        hidden: action.hidden,
+        updatedAt: bump(action.at, existing?.updatedAt)
+      };
       const rest = data.hiddenExercises.filter((h) => h.id !== action.id);
       return { ...data, hiddenExercises: [...rest, entry] };
     }
     case 'apply-template':
       return {
         ...data,
-        sessions: upsertSession(data.sessions, action.date, action.at, (s) => {
+        sessions: upsertSession(data, action.date, action.at, (s) => {
           const present = new Set(s.blocks.map((b) => b.exerciseId));
           const additions = action.blocks
             .filter((b) => !present.has(b.exerciseId))
@@ -228,7 +283,7 @@ function reducer(data: AppData, action: Action): AppData {
     case 'add-cardio':
       return {
         ...data,
-        sessions: upsertSession(data.sessions, action.date, action.at, (s) => ({
+        sessions: upsertSession(data, action.date, action.at, (s) => ({
           ...s,
           cardio: [
             ...s.cardio,
@@ -245,14 +300,18 @@ function reducer(data: AppData, action: Action): AppData {
       const sessions = data.sessions
         .map((s) =>
           s.date === action.date
-            ? { ...s, cardio: s.cardio.filter((c) => c.id !== action.cardioId), updatedAt: action.at }
+            ? {
+                ...s,
+                cardio: s.cardio.filter((c) => c.id !== action.cardioId),
+                updatedAt: bump(action.at, s.updatedAt)
+              }
             : s
         )
         .filter((s) => s.blocks.length > 0 || s.cardio.length > 0);
       return { ...data, sessions };
     }
     case 'set-profile':
-      return { ...data, profile: action.profile, profileUpdatedAt: action.at };
+      return { ...data, profile: action.profile, profileUpdatedAt: bump(action.at, data.profileUpdatedAt) };
     case 'import-data':
       return action.data;
     case 'merge-remote':
