@@ -262,8 +262,8 @@ export default function SettingsScreen() {
         </section>
 
         <div className="sub dim about">
-          Powerlifting Tracker v1.1.0 · e1RM uses the RTS-style RPE chart (Epley beyond 12 effective
-          reps).
+          Powerlifting Tracker v{__APP_VERSION__} · e1RM uses the RTS-style RPE chart (Epley beyond
+          12 effective reps).
         </div>
       </div>
     </div>

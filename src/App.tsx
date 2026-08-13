@@ -19,6 +19,7 @@ export default function App() {
             {tab === 'history' && <HistoryScreen />}
             {tab === 'progress' && <ProgressScreen />}
             {tab === 'settings' && <SettingsScreen />}
+            <div className="version-tag">v{__APP_VERSION__}</div>
           </main>
           <TabBar active={tab} onChange={setTab} />
         </div>

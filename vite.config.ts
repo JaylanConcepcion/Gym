@@ -1,10 +1,28 @@
+import { execSync } from 'node:child_process';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
+/**
+ * Display version: 1.N where N auto-increments with every push.
+ * Derived from the git commit count; the baseline of 3 makes the
+ * commit that introduced versioning show as 1.0.
+ */
+function computeVersion(): string {
+  try {
+    const count = Number(execSync('git rev-list --count HEAD').toString().trim());
+    return `1.${Math.max(0, count - 3)}`;
+  } catch {
+    return '1.x';
+  }
+}
+
 export default defineConfig({
   // Must match the GitHub repo name so assets resolve on GitHub Pages.
   base: '/Gym/',
+  define: {
+    __APP_VERSION__: JSON.stringify(computeVersion())
+  },
   plugins: [
     react(),
     VitePWA({
