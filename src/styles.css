@@ -826,6 +826,30 @@ h3 {
   gap: 6px;
 }
 
+/* ---------- 1RM calculator ---------- */
+
+.calc-btn {
+  width: 40px;
+  height: 40px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--accent);
+}
+
+.calc-result {
+  text-align: center;
+  display: grid;
+  gap: 4px;
+}
+
+.calc-value {
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
 .chip-divider {
   width: 1px;
   align-self: stretch;
