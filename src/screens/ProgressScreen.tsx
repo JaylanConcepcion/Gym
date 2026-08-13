@@ -12,11 +12,12 @@ import {
   YAxis
 } from 'recharts';
 import { addDaysISO, formatMonthLabel, formatShortDate, todayISO } from '../lib/dates';
-import { exerciseName } from '../lib/exercises';
+import { BIG3, exerciseName } from '../lib/exercises';
 import {
   bodyWeightSeries,
   exercisesWithData,
   prRecords,
+  repCountsForExercise,
   tonnageByPeriod,
   topSetByDate,
   topSetE1rmByPeriod,
@@ -55,6 +56,7 @@ interface ProgressPrefs {
   charts: ChartFlags;
   period: Period;
   range: RangeId;
+  repFilter: number | null;
 }
 
 const PREFS_KEY = 'pl-tracker/progress-ui';
@@ -152,18 +154,25 @@ export default function ProgressScreen() {
   const [flags, setFlags] = useState<ChartFlags>({ ...DEFAULT_FLAGS, ...prefs.charts });
   const [period, setPeriod] = useState<Period>(prefs.period ?? 'week');
   const [rangeId, setRangeId] = useState<RangeId>(prefs.range ?? 'all');
+  const [repFilter, setRepFilter] = useState<number | null>(prefs.repFilter ?? null);
   const [addOpen, setAddOpen] = useState(false);
 
   useEffect(() => {
     try {
       localStorage.setItem(
         PREFS_KEY,
-        JSON.stringify({ selected, charts: flags, period, range: rangeId } satisfies ProgressPrefs)
+        JSON.stringify({
+          selected,
+          charts: flags,
+          period,
+          range: rangeId,
+          repFilter
+        } satisfies ProgressPrefs)
       );
     } catch {
       // Preference persistence is best-effort only.
     }
-  }, [selected, flags, period, rangeId]);
+  }, [selected, flags, period, rangeId, repFilter]);
 
   const known = useMemo(() => {
     const s = new Set(data.customExercises.map((e) => e.id));
@@ -198,13 +207,28 @@ export default function ProgressScreen() {
   const labelFor = (key: string) => (period === 'month' ? formatMonthLabel(key) : formatShortDate(key));
   const colorFor = (idx: number) => PALETTE[idx % PALETTE.length];
 
+  // Rep filter applies only to the big three; every other lift charts its
+  // plain heaviest set per day.
+  const big3Selected = selection.filter((id) => BIG3.includes(id));
+  const repOptions = useMemo(() => {
+    const reps = new Set<number>();
+    for (const id of big3Selected) for (const r of repCountsForExercise(data, id)) reps.add(r);
+    return [...reps].sort((a, b) => a - b);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, big3Selected.join(',')]);
+  const effectiveRepFilter = repFilter != null && repOptions.includes(repFilter) ? repFilter : null;
+  const repFor = (id: string) => (BIG3.includes(id) ? effectiveRepFilter : null);
+
   const e1rmSeries = useMemo(
     () =>
       selection.map((id) => ({
         id,
-        points: topSetE1rmByPeriod(data, id, period).filter((p) => !cutoff || p.key >= cutoff)
+        points: topSetE1rmByPeriod(data, id, period, repFor(id)).filter(
+          (p) => !cutoff || p.key >= cutoff
+        )
       })),
-    [data, selection, period, cutoff]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [data, selection, period, cutoff, effectiveRepFilter]
   );
 
   const combinedE1rm = useMemo(() => {
@@ -296,6 +320,31 @@ export default function ProgressScreen() {
             ))}
           </div>
 
+          {big3Selected.length > 0 && repOptions.length > 0 && (
+            <div className="chips-row">
+              <span className="sub dim" style={{ alignSelf: 'center', flex: 'none' }}>
+                Reps (SBD):
+              </span>
+              <button
+                type="button"
+                className={`chip small${effectiveRepFilter == null ? ' active' : ''}`}
+                onClick={() => setRepFilter(null)}
+              >
+                Top set
+              </button>
+              {repOptions.map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  className={`chip small${effectiveRepFilter === r ? ' active' : ''}`}
+                  onClick={() => setRepFilter(effectiveRepFilter === r ? null : r)}
+                >
+                  {r}s
+                </button>
+              ))}
+            </div>
+          )}
+
           <div className="chips-row">
             <span className="sub dim" style={{ alignSelf: 'center', flex: 'none' }}>
               Graphs:
@@ -345,7 +394,13 @@ export default function ProgressScreen() {
           )}
 
           {flags.e1rm && selection.length > 0 && (
-            <ChartCard title={`Estimated 1RM — top set per ${periodNoun}`}>
+            <ChartCard
+              title={`Estimated 1RM — ${
+                effectiveRepFilter != null && big3Selected.length > 0
+                  ? `top ${effectiveRepFilter}-rep set (SBD) per ${periodNoun}`
+                  : `top set per ${periodNoun}`
+              }`}
+            >
               <LineChart data={combinedE1rm} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
                 <CartesianGrid stroke="#23262e" strokeDasharray="3 3" vertical={false} />
                 <XAxis
@@ -379,7 +434,8 @@ export default function ProgressScreen() {
 
           {flags.top &&
             selection.map((id, i) => {
-              const tops = topSetByDate(data, id)
+              const rep = repFor(id);
+              const tops = topSetByDate(data, id, rep)
                 .filter((s) => !cutoff || s.date >= cutoff)
                 .map((s) => ({
                   label: formatShortDate(s.date),
@@ -387,7 +443,10 @@ export default function ProgressScreen() {
                 }));
               if (tops.length === 0) return null;
               return (
-                <ChartCard key={id} title={`Top set — ${exerciseName(data, id)}`}>
+                <ChartCard
+                  key={id}
+                  title={`Top set${rep != null ? ` of ${rep}` : ''} — ${exerciseName(data, id)}`}
+                >
                   <LineChart data={tops} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
                     <CartesianGrid stroke="#23262e" strokeDasharray="3 3" vertical={false} />
                     <XAxis

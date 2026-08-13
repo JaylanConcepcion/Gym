@@ -59,15 +59,18 @@ export function periodKey(dateStr: string, period: Period): string {
 /**
  * e1RM of the top set (heaviest weight, tie → more reps) per day/week/month.
  * Only the top set drives the trend line, so back-off volume never skews it.
+ * Pass `reps` to track top sets at a specific rep count (e.g. your 5s).
  */
 export function topSetE1rmByPeriod(
   data: AppData,
   exerciseId: string,
-  period: Period
+  period: Period,
+  reps: number | null = null
 ): Array<{ key: string; e1rmKg: number }> {
   const byKey = new Map<string, LoggedSet>();
   for (const s of allLoggedSets(data)) {
     if (s.exerciseId !== exerciseId) continue;
+    if (reps != null && s.reps !== reps) continue;
     const k = periodKey(s.date, period);
     const cur = byKey.get(k);
     if (!cur || s.weightKg > cur.weightKg || (s.weightKg === cur.weightKg && s.reps > cur.reps)) {
@@ -79,11 +82,25 @@ export function topSetE1rmByPeriod(
     .sort((a, b) => a.key.localeCompare(b.key));
 }
 
-/** Heaviest set of each session for an exercise. */
-export function topSetByDate(data: AppData, exerciseId: string): LoggedSet[] {
+/** Rep counts actually logged for an exercise (ascending, capped at 15). */
+export function repCountsForExercise(data: AppData, exerciseId: string): number[] {
+  const reps = new Set<number>();
+  for (const s of allLoggedSets(data)) {
+    if (s.exerciseId === exerciseId && s.reps >= 1 && s.reps <= 15) reps.add(s.reps);
+  }
+  return [...reps].sort((a, b) => a - b);
+}
+
+/** Heaviest set of each session for an exercise (optionally at an exact rep count). */
+export function topSetByDate(
+  data: AppData,
+  exerciseId: string,
+  reps: number | null = null
+): LoggedSet[] {
   const byDate = new Map<string, LoggedSet>();
   for (const s of allLoggedSets(data)) {
     if (s.exerciseId !== exerciseId) continue;
+    if (reps != null && s.reps !== reps) continue;
     const cur = byDate.get(s.date);
     if (!cur || s.weightKg > cur.weightKg || (s.weightKg === cur.weightKg && s.reps > cur.reps)) {
       byDate.set(s.date, s);
