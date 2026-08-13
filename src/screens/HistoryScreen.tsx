@@ -69,25 +69,41 @@ export default function HistoryScreen() {
             );
             const bw = data.bodyWeights.find((b) => b.date === s.date);
             return (
-              <button
+              <div
                 key={s.date}
-                type="button"
+                role="button"
+                tabIndex={0}
                 className="card session-card"
                 onClick={() => setSelected(s.date)}
               >
                 <div className="session-head">
                   <strong>{formatLongDate(s.date)}</strong>
-                  {bw && (
-                    <span className="tag">
-                      BW {formatWeightValue(bw.weightKg, units)} {units}
-                    </span>
-                  )}
+                  <span className="row" style={{ gap: 6 }}>
+                    {bw && (
+                      <span className="tag">
+                        BW {formatWeightValue(bw.weightKg, units)} {units}
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      className="icon-btn small"
+                      aria-label={`Delete ${formatLongDate(s.date)}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (window.confirm(`Delete the whole session from ${formatLongDate(s.date)}?`)) {
+                          actions.deleteSession(s.date);
+                        }
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </span>
                 </div>
                 <div className="sub">
                   {s.blocks.map((b) => `${exerciseName(data, b.exerciseId)} · ${b.sets.length}×`).join('   ')}
                 </div>
                 <div className="sub dim">{formatTonnage(tonnageKg, units)} total</div>
-              </button>
+              </div>
             );
           })}
         </div>

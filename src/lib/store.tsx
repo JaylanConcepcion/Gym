@@ -21,6 +21,10 @@ type Action =
   | { type: 'set-units'; units: Units; at: number }
   | { type: 'add-custom-exercise'; id: string; name: string; at: number }
   | { type: 'remove-custom-exercise'; id: string; at: number }
+  | { type: 'save-template'; id: string; name: string; exerciseIds: string[]; at: number }
+  | { type: 'delete-template'; id: string; at: number }
+  | { type: 'set-exercise-hidden'; id: string; hidden: boolean; at: number }
+  | { type: 'apply-template'; date: string; blocks: Array<{ blockId: string; exerciseId: string }>; at: number }
   | { type: 'import-data'; data: AppData }
   | { type: 'apply-synced'; data: AppData }
   | { type: 'clear-all' };
@@ -160,6 +164,42 @@ function reducer(data: AppData, action: Action): AppData {
           deletedAt: action.at
         })
       };
+    case 'save-template': {
+      const tpl = { id: action.id, name: action.name, exerciseIds: action.exerciseIds, updatedAt: action.at };
+      const exists = data.templates.some((t) => t.id === action.id);
+      return {
+        ...data,
+        templates: exists
+          ? data.templates.map((t) => (t.id === action.id ? tpl : t))
+          : [...data.templates, tpl]
+      };
+    }
+    case 'delete-template':
+      return {
+        ...data,
+        templates: data.templates.filter((t) => t.id !== action.id),
+        tombstones: withTombstone(data.tombstones, {
+          type: 'template',
+          key: action.id,
+          deletedAt: action.at
+        })
+      };
+    case 'set-exercise-hidden': {
+      const entry = { id: action.id, hidden: action.hidden, updatedAt: action.at };
+      const rest = data.hiddenExercises.filter((h) => h.id !== action.id);
+      return { ...data, hiddenExercises: [...rest, entry] };
+    }
+    case 'apply-template':
+      return {
+        ...data,
+        sessions: upsertSession(data.sessions, action.date, action.at, (s) => {
+          const present = new Set(s.blocks.map((b) => b.exerciseId));
+          const additions = action.blocks
+            .filter((b) => !present.has(b.exerciseId))
+            .map((b) => ({ id: b.blockId, exerciseId: b.exerciseId, sets: [] }));
+          return { ...s, blocks: [...s.blocks, ...additions] };
+        })
+      };
     case 'import-data':
       return action.data;
     case 'apply-synced':
@@ -224,6 +264,21 @@ export function useActions() {
       },
       removeCustomExercise: (id: string) =>
         dispatch({ type: 'remove-custom-exercise', id, at: Date.now() }),
+      saveTemplate: (name: string, exerciseIds: string[], id?: string): string => {
+        const tplId = id ?? `tpl-${uid()}`;
+        dispatch({ type: 'save-template', id: tplId, name, exerciseIds, at: Date.now() });
+        return tplId;
+      },
+      deleteTemplate: (id: string) => dispatch({ type: 'delete-template', id, at: Date.now() }),
+      setExerciseHidden: (id: string, hidden: boolean) =>
+        dispatch({ type: 'set-exercise-hidden', id, hidden, at: Date.now() }),
+      applyTemplate: (date: string, exerciseIds: string[]) =>
+        dispatch({
+          type: 'apply-template',
+          date,
+          blocks: exerciseIds.map((exerciseId) => ({ blockId: uid(), exerciseId })),
+          at: Date.now()
+        }),
       importData: (data: AppData) => dispatch({ type: 'import-data', data }),
       applySynced: (data: AppData) => dispatch({ type: 'apply-synced', data }),
       clearAll: () => dispatch({ type: 'clear-all' })

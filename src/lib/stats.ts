@@ -47,21 +47,31 @@ export function exercisesWithData(data: AppData): string[] {
   });
 }
 
-/** Best e1RM per week (week = Monday start). The week-to-week trend line. */
-export function weeklyBestE1rm(
+export type Period = 'day' | 'week' | 'month';
+
+/** Bucket key for a date at the requested granularity (week = Monday start). */
+export function periodKey(dateStr: string, period: Period): string {
+  if (period === 'day') return dateStr;
+  if (period === 'week') return weekStartISO(dateStr);
+  return `${dateStr.slice(0, 7)}-01`;
+}
+
+/** Best e1RM per day/week/month. The progression trend line. */
+export function bestE1rmByPeriod(
   data: AppData,
-  exerciseId: string
-): Array<{ week: string; e1rmKg: number }> {
-  const byWeek = new Map<string, number>();
+  exerciseId: string,
+  period: Period
+): Array<{ key: string; e1rmKg: number }> {
+  const byKey = new Map<string, number>();
   for (const s of allLoggedSets(data)) {
     if (s.exerciseId !== exerciseId) continue;
-    const wk = weekStartISO(s.date);
-    const cur = byWeek.get(wk);
-    if (cur == null || s.e1rmKg > cur) byWeek.set(wk, s.e1rmKg);
+    const k = periodKey(s.date, period);
+    const cur = byKey.get(k);
+    if (cur == null || s.e1rmKg > cur) byKey.set(k, s.e1rmKg);
   }
-  return [...byWeek.entries()]
-    .map(([week, e1rmKg]) => ({ week, e1rmKg }))
-    .sort((a, b) => a.week.localeCompare(b.week));
+  return [...byKey.entries()]
+    .map(([key, e1rmKg]) => ({ key, e1rmKg }))
+    .sort((a, b) => a.key.localeCompare(b.key));
 }
 
 /** Heaviest set of each session for an exercise. */
@@ -77,22 +87,23 @@ export function topSetByDate(data: AppData, exerciseId: string): LoggedSet[] {
   return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
 }
 
-export function weeklyTonnage(
+export function tonnageByPeriod(
   data: AppData,
-  exerciseId: string
-): Array<{ week: string; tonnageKg: number; sets: number }> {
-  const byWeek = new Map<string, { tonnageKg: number; sets: number }>();
+  exerciseId: string,
+  period: Period
+): Array<{ key: string; tonnageKg: number; sets: number }> {
+  const byKey = new Map<string, { tonnageKg: number; sets: number }>();
   for (const s of allLoggedSets(data)) {
     if (s.exerciseId !== exerciseId) continue;
-    const wk = weekStartISO(s.date);
-    const cur = byWeek.get(wk) ?? { tonnageKg: 0, sets: 0 };
+    const k = periodKey(s.date, period);
+    const cur = byKey.get(k) ?? { tonnageKg: 0, sets: 0 };
     cur.tonnageKg += s.weightKg * s.reps;
     cur.sets += 1;
-    byWeek.set(wk, cur);
+    byKey.set(k, cur);
   }
-  return [...byWeek.entries()]
-    .map(([week, v]) => ({ week, ...v }))
-    .sort((a, b) => a.week.localeCompare(b.week));
+  return [...byKey.entries()]
+    .map(([key, v]) => ({ key, ...v }))
+    .sort((a, b) => a.key.localeCompare(b.key));
 }
 
 /** Body weight entries with a trailing 7-day rolling average. */

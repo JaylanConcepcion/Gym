@@ -40,10 +40,25 @@ export interface BodyWeightEntry {
 
 /** Deletion marker so removals propagate across devices instead of resurrecting. */
 export interface Tombstone {
-  type: 'session' | 'bodyweight' | 'exercise';
-  /** Session/bodyweight: date. Exercise: id. */
+  type: 'session' | 'bodyweight' | 'exercise' | 'template';
+  /** Session/bodyweight: date. Exercise/template: id. */
   key: string;
   deletedAt: number;
+}
+
+/** A reusable "lifting day": one tap adds all of its exercises to the log. */
+export interface WorkoutTemplate {
+  id: string;
+  name: string;
+  exerciseIds: string[];
+  updatedAt: number;
+}
+
+/** Per-exercise picker visibility (lets presets be hidden without losing history). */
+export interface ExerciseVisibility {
+  id: string;
+  hidden: boolean;
+  updatedAt: number;
 }
 
 export interface Settings {
@@ -58,4 +73,6 @@ export interface AppData {
   sessions: Session[];
   bodyWeights: BodyWeightEntry[];
   tombstones: Tombstone[];
+  templates: WorkoutTemplate[];
+  hiddenExercises: ExerciseVisibility[];
 }

@@ -28,6 +28,16 @@ export function exerciseName(data: AppData, id: string): string {
   return getAllExercises(data).find((e) => e.id === id)?.name ?? 'Unknown exercise';
 }
 
+export function hiddenExerciseIds(data: AppData): Set<string> {
+  return new Set(data.hiddenExercises.filter((h) => h.hidden).map((h) => h.id));
+}
+
+/** Exercises offered by the picker (history keeps resolving hidden ones). */
+export function visibleExercises(data: AppData): ExerciseDef[] {
+  const hidden = hiddenExerciseIds(data);
+  return getAllExercises(data).filter((e) => !hidden.has(e.id));
+}
+
 /** Chart accent color keyed off the lift family. */
 export function colorForExercise(name: string): string {
   const n = name.toLowerCase();

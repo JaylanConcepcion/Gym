@@ -1,4 +1,12 @@
-import type { AppData, BodyWeightEntry, ExerciseDef, Session, Tombstone } from './types';
+import type {
+  AppData,
+  BodyWeightEntry,
+  ExerciseDef,
+  ExerciseVisibility,
+  Session,
+  Tombstone,
+  WorkoutTemplate
+} from './types';
 
 const STORAGE_KEY = 'pl-tracker/v1';
 
@@ -10,7 +18,9 @@ export function defaultData(): AppData {
     customExercises: [],
     sessions: [],
     bodyWeights: [],
-    tombstones: []
+    tombstones: [],
+    templates: [],
+    hiddenExercises: []
   };
 }
 
@@ -29,6 +39,8 @@ export function normalizeData(raw: unknown): AppData | null {
     sessions?: unknown[];
     bodyWeights?: unknown[];
     tombstones?: unknown[];
+    templates?: unknown[];
+    hiddenExercises?: unknown[];
   };
   if (d.version !== 1 && d.version !== 2) return null;
   if (!d.settings || (d.settings.units !== 'lb' && d.settings.units !== 'kg')) return null;
@@ -56,7 +68,22 @@ export function normalizeData(raw: unknown): AppData | null {
       weightKg: b.weightKg,
       updatedAt: typeof b.updatedAt === 'number' ? b.updatedAt : 0
     })),
-    tombstones: Array.isArray(d.tombstones) ? (d.tombstones as Tombstone[]) : []
+    tombstones: Array.isArray(d.tombstones) ? (d.tombstones as Tombstone[]) : [],
+    templates: Array.isArray(d.templates)
+      ? (d.templates as WorkoutTemplate[]).map((t) => ({
+          id: t.id,
+          name: t.name,
+          exerciseIds: Array.isArray(t.exerciseIds) ? t.exerciseIds : [],
+          updatedAt: typeof t.updatedAt === 'number' ? t.updatedAt : 0
+        }))
+      : [],
+    hiddenExercises: Array.isArray(d.hiddenExercises)
+      ? (d.hiddenExercises as ExerciseVisibility[]).map((h) => ({
+          id: h.id,
+          hidden: !!h.hidden,
+          updatedAt: typeof h.updatedAt === 'number' ? h.updatedAt : 0
+        }))
+      : []
   };
 }
 

@@ -35,6 +35,13 @@ export function formatShortDate(dateStr: string): string {
   });
 }
 
+/** e.g. "Aug '26" — used for month-granularity chart axes. */
+export function formatMonthLabel(dateStr: string): string {
+  const d = parseISODate(dateStr);
+  const month = d.toLocaleDateString(undefined, { month: 'short' });
+  return `${month} '${String(d.getFullYear()).slice(2)}`;
+}
+
 export function formatRelativeTime(msEpoch: number): string {
   const diff = Date.now() - msEpoch;
   if (diff < 30_000) return 'just now';

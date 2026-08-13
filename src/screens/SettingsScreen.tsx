@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { formatRelativeTime, todayISO } from '../lib/dates';
+import { getAllExercises, hiddenExerciseIds } from '../lib/exercises';
 import { TOKEN_URL } from '../lib/gist';
 import { allLoggedSets } from '../lib/stats';
 import { normalizeData } from '../lib/storage';
@@ -17,6 +18,7 @@ export default function SettingsScreen() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const usedIds = useMemo(() => new Set(allLoggedSets(data).map((s) => s.exerciseId)), [data]);
+  const hidden = useMemo(() => hiddenExerciseIds(data), [data]);
 
   async function connectSync() {
     const ok = await sync.connect(tokenInput);
@@ -198,24 +200,42 @@ export default function SettingsScreen() {
         </section>
 
         <section className="card">
-          <h3>Custom exercises</h3>
-          {data.customExercises.length === 0 && (
-            <div className="sub dim">None yet. You can also create them from the exercise picker.</div>
-          )}
-          {data.customExercises.map((e) => (
-            <div key={e.id} className="list-row static">
-              <span>{e.name}</span>
-              <button
-                type="button"
-                className="icon-btn small"
-                onClick={() => removeExercise(e.id, e.name)}
-                aria-label={`Delete ${e.name}`}
-              >
-                ✕
-              </button>
-            </div>
-          ))}
-          <div className="row">
+          <h3>Exercises</h3>
+          <div className="sub dim" style={{ marginBottom: 8 }}>
+            Hide lifts you never do to clean up the picker — history and graphs are kept. Custom
+            lifts can be deleted while unused.
+          </div>
+          {getAllExercises(data).map((e) => {
+            const isHidden = hidden.has(e.id);
+            return (
+              <div key={e.id} className={`list-row static${isHidden ? ' muted' : ''}`}>
+                <span>
+                  {e.name}
+                  {e.isCustom && <span className="tag" style={{ marginLeft: 8 }}>custom</span>}
+                </span>
+                <span className="row" style={{ gap: 6 }}>
+                  <button
+                    type="button"
+                    className="btn ghost small"
+                    onClick={() => actions.setExerciseHidden(e.id, !isHidden)}
+                  >
+                    {isHidden ? 'Show' : 'Hide'}
+                  </button>
+                  {e.isCustom && (
+                    <button
+                      type="button"
+                      className="icon-btn small"
+                      onClick={() => removeExercise(e.id, e.name)}
+                      aria-label={`Delete ${e.name}`}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </span>
+              </div>
+            );
+          })}
+          <div className="row" style={{ marginTop: 8 }}>
             <input
               className="input"
               placeholder="New exercise name"

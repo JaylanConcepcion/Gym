@@ -10,15 +10,16 @@ import {
   XAxis,
   YAxis
 } from 'recharts';
-import { addDaysISO, formatShortDate, todayISO } from '../lib/dates';
+import { addDaysISO, formatMonthLabel, formatShortDate, todayISO } from '../lib/dates';
 import { colorForExercise, exerciseName } from '../lib/exercises';
 import {
+  bestE1rmByPeriod,
   bodyWeightSeries,
   exercisesWithData,
   prRecords,
+  tonnageByPeriod,
   topSetByDate,
-  weeklyBestE1rm,
-  weeklyTonnage
+  type Period
 } from '../lib/stats';
 import { useApp } from '../lib/store';
 import { formatWeight, formatWeightValue, kgToDisplay, roundTo } from '../lib/units';
@@ -30,6 +31,12 @@ const RANGES = [
 ] as const;
 
 type RangeId = (typeof RANGES)[number]['id'];
+
+const PERIODS: Array<{ id: Period; label: string; noun: string }> = [
+  { id: 'day', label: 'Days', noun: 'day' },
+  { id: 'week', label: 'Weeks', noun: 'week' },
+  { id: 'month', label: 'Months', noun: 'month' }
+];
 
 const TOOLTIP_STYLES = {
   contentStyle: {
@@ -64,22 +71,27 @@ export default function ProgressScreen() {
   const withData = useMemo(() => exercisesWithData(data), [data]);
   const [selId, setSelId] = useState<string | null>(null);
   const [rangeId, setRangeId] = useState<RangeId>('all');
+  const [period, setPeriod] = useState<Period>('week');
 
   const active = selId && withData.includes(selId) ? selId : (withData[0] ?? null);
   const rangeDays = RANGES.find((r) => r.id === rangeId)?.days ?? null;
   const cutoff = rangeDays == null ? null : addDaysISO(todayISO(), -rangeDays);
+  const periodNoun = PERIODS.find((p) => p.id === period)?.noun ?? 'week';
+  const labelFor = (key: string) => (period === 'month' ? formatMonthLabel(key) : formatShortDate(key));
 
-  const weekly = useMemo(
-    () => (active ? weeklyBestE1rm(data, active).filter((p) => !cutoff || p.week >= cutoff) : []),
-    [data, active, cutoff]
+  const trend = useMemo(
+    () =>
+      active ? bestE1rmByPeriod(data, active, period).filter((p) => !cutoff || p.key >= cutoff) : [],
+    [data, active, period, cutoff]
   );
   const tops = useMemo(
     () => (active ? topSetByDate(data, active).filter((s) => !cutoff || s.date >= cutoff) : []),
     [data, active, cutoff]
   );
   const tonnage = useMemo(
-    () => (active ? weeklyTonnage(data, active).filter((t) => !cutoff || t.week >= cutoff) : []),
-    [data, active, cutoff]
+    () =>
+      active ? tonnageByPeriod(data, active, period).filter((t) => !cutoff || t.key >= cutoff) : [],
+    [data, active, period, cutoff]
   );
   const bw = useMemo(
     () => bodyWeightSeries(data).filter((e) => !cutoff || e.date >= cutoff),
@@ -89,8 +101,8 @@ export default function ProgressScreen() {
 
   const color = active ? colorForExercise(exerciseName(data, active)) : '#f97316';
 
-  const weeklyData = weekly.map((p) => ({
-    label: formatShortDate(p.week),
+  const trendData = trend.map((p) => ({
+    label: labelFor(p.key),
     value: roundTo(kgToDisplay(p.e1rmKg, units), 1)
   }));
   const topsData = tops.map((s) => ({
@@ -98,7 +110,7 @@ export default function ProgressScreen() {
     value: roundTo(kgToDisplay(s.weightKg, units), 1)
   }));
   const tonnageData = tonnage.map((t) => ({
-    label: formatShortDate(t.week),
+    label: labelFor(t.key),
     value: Math.round(kgToDisplay(t.tonnageKg, units))
   }));
   const bwData = bw.map((e) => ({
@@ -107,8 +119,8 @@ export default function ProgressScreen() {
     avg: roundTo(kgToDisplay(e.avgKg, units), 1)
   }));
 
-  const latest = weekly.length > 0 ? weekly[weekly.length - 1] : null;
-  const prior = weekly.length > 1 ? weekly[weekly.length - 2] : null;
+  const latest = trend.length > 0 ? trend[trend.length - 1] : null;
+  const prior = trend.length > 1 ? trend[trend.length - 2] : null;
   const deltaKg = latest && prior ? latest.e1rmKg - prior.e1rmKg : null;
 
   return (
@@ -134,6 +146,17 @@ export default function ProgressScreen() {
             ))}
           </div>
           <div className="chips-row">
+            {PERIODS.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                className={`chip small${period === p.id ? ' active' : ''}`}
+                onClick={() => setPeriod(p.id)}
+              >
+                {p.label}
+              </button>
+            ))}
+            <span className="chip-divider" />
             {RANGES.map((r) => (
               <button
                 key={r.id}
@@ -148,12 +171,12 @@ export default function ProgressScreen() {
 
           <div className="stat-grid">
             <div className="card stat">
-              <div className="stat-label">Latest weekly e1RM</div>
+              <div className="stat-label">Latest e1RM ({periodNoun})</div>
               <div className="stat-value">{latest ? formatWeight(latest.e1rmKg, units, 0) : '—'}</div>
               {deltaKg != null && (
                 <div className={`delta ${deltaKg >= 0 ? 'up' : 'down'}`}>
                   {deltaKg >= 0 ? '▲' : '▼'} {formatWeightValue(Math.abs(deltaKg), units)} {units} vs
-                  prior week
+                  prior {periodNoun}
                 </div>
               )}
             </div>
@@ -172,8 +195,8 @@ export default function ProgressScreen() {
             </div>
           </div>
 
-          <ChartCard title="Estimated 1RM — weekly best">
-            <LineChart data={weeklyData} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
+          <ChartCard title={`Estimated 1RM — best per ${periodNoun}`}>
+            <LineChart data={trendData} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
               <CartesianGrid stroke="#23262e" strokeDasharray="3 3" vertical={false} />
               <XAxis
                 dataKey="label"
@@ -225,7 +248,7 @@ export default function ProgressScreen() {
             </LineChart>
           </ChartCard>
 
-          <ChartCard title="Weekly volume">
+          <ChartCard title={`Volume — per ${periodNoun}`}>
             <BarChart data={tonnageData} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
               <CartesianGrid stroke="#23262e" strokeDasharray="3 3" vertical={false} />
               <XAxis

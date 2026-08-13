@@ -1,4 +1,12 @@
-import type { AppData, BodyWeightEntry, ExerciseDef, Session, Tombstone } from './types';
+import type {
+  AppData,
+  BodyWeightEntry,
+  ExerciseDef,
+  ExerciseVisibility,
+  Session,
+  Tombstone,
+  WorkoutTemplate
+} from './types';
 
 /**
  * Two-device merge. Granularity is deliberately per-day (per-session):
@@ -69,6 +77,25 @@ export function mergeData(local: AppData, remote: AppData): AppData {
     })
     .sort((a, b) => a.id.localeCompare(b.id));
 
+  const tplById = new Map<string, WorkoutTemplate>();
+  for (const t of [...local.templates, ...remote.templates]) {
+    const cur = tplById.get(t.id);
+    if (!cur || t.updatedAt > cur.updatedAt) tplById.set(t.id, t);
+  }
+  const templates = [...tplById.values()]
+    .filter((t) => {
+      const tomb = tombs.get(`template:${t.id}`);
+      return !tomb || t.updatedAt > tomb.deletedAt;
+    })
+    .sort((a, b) => a.id.localeCompare(b.id));
+
+  const visById = new Map<string, ExerciseVisibility>();
+  for (const h of [...local.hiddenExercises, ...remote.hiddenExercises]) {
+    const cur = visById.get(h.id);
+    if (!cur || h.updatedAt > cur.updatedAt) visById.set(h.id, h);
+  }
+  const hiddenExercises = [...visById.values()].sort((a, b) => a.id.localeCompare(b.id));
+
   const settingsFrom = remote.settingsUpdatedAt > local.settingsUpdatedAt ? remote : local;
 
   return {
@@ -78,7 +105,9 @@ export function mergeData(local: AppData, remote: AppData): AppData {
     customExercises,
     sessions,
     bodyWeights,
-    tombstones: [...tombs.values()].sort((a, b) => `${a.type}:${a.key}`.localeCompare(`${b.type}:${b.key}`))
+    tombstones: [...tombs.values()].sort((a, b) => `${a.type}:${a.key}`.localeCompare(`${b.type}:${b.key}`)),
+    templates,
+    hiddenExercises
   };
 }
 
@@ -93,6 +122,8 @@ export function canonicalize(data: AppData): string {
     bodyWeights: [...data.bodyWeights].sort((a, b) => a.date.localeCompare(b.date)),
     tombstones: [...data.tombstones].sort((a, b) =>
       `${a.type}:${a.key}`.localeCompare(`${b.type}:${b.key}`)
-    )
+    ),
+    templates: [...data.templates].sort((a, b) => a.id.localeCompare(b.id)),
+    hiddenExercises: [...data.hiddenExercises].sort((a, b) => a.id.localeCompare(b.id))
   });
 }
