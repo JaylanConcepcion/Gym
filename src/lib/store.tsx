@@ -21,7 +21,7 @@ type Action =
   | { type: 'set-bodyweight'; date: string; weightKg: number | null; at: number }
   | { type: 'set-units'; units: Units; at: number }
   | { type: 'add-custom-exercise'; id: string; name: string; tags: string[]; at: number }
-  | { type: 'update-exercise-tags'; id: string; tags: string[]; at: number }
+  | { type: 'update-exercise'; id: string; name: string; tags: string[]; at: number }
   | { type: 'remove-custom-exercise'; id: string; at: number }
   | { type: 'save-template'; id: string; name: string; exerciseIds: string[]; at: number }
   | { type: 'delete-template'; id: string; at: number }
@@ -171,11 +171,11 @@ function reducer(data: AppData, action: Action): AppData {
           }
         ]
       };
-    case 'update-exercise-tags':
+    case 'update-exercise':
       return {
         ...data,
         customExercises: data.customExercises.map((e) =>
-          e.id === action.id ? { ...e, tags: action.tags, updatedAt: action.at } : e
+          e.id === action.id ? { ...e, name: action.name, tags: action.tags, updatedAt: action.at } : e
         )
       };
     case 'remove-custom-exercise':
@@ -317,8 +317,8 @@ export function useActions() {
         dispatch({ type: 'set-exercise-hidden', id, hidden: false, at: Date.now() });
         return id;
       },
-      updateExerciseTags: (id: string, tags: string[]) =>
-        dispatch({ type: 'update-exercise-tags', id, tags, at: Date.now() }),
+      updateExercise: (id: string, name: string, tags: string[]) =>
+        dispatch({ type: 'update-exercise', id, name, tags, at: Date.now() }),
       removeCustomExercise: (id: string) =>
         dispatch({ type: 'remove-custom-exercise', id, at: Date.now() }),
       saveTemplate: (name: string, exerciseIds: string[], id?: string): string => {

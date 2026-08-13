@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
+import ExerciseEditorSheet, { type ExerciseDraft } from '../components/ExerciseEditorSheet';
 import TemplateEditor, { type TemplateDraft } from '../components/TemplateEditor';
 import { todayISO } from '../lib/dates';
-import { allTags, exerciseName, hasTag, hiddenExerciseIds, parseTags } from '../lib/exercises';
+import { allTags, exerciseName, hasTag, hiddenExerciseIds } from '../lib/exercises';
 import { allLoggedSets } from '../lib/stats';
 import { useActions, useApp } from '../lib/store';
 
@@ -11,8 +12,7 @@ export default function ExercisesScreen({ onGoToLog }: { onGoToLog: () => void }
   const { data } = useApp();
   const actions = useActions();
   const [editing, setEditing] = useState<TemplateDraft | null>(null);
-  const [newExercise, setNewExercise] = useState('');
-  const [newTags, setNewTags] = useState('');
+  const [exEditing, setExEditing] = useState<ExerciseDraft | null>(null);
   const [tagFilter, setTagFilter] = useState<string | null>(null);
   const [sortMode, setSortMode] = useState<SortMode>('az');
 
@@ -37,19 +37,6 @@ export default function ExercisesScreen({ onGoToLog }: { onGoToLog: () => void }
     if (!tpl) return;
     actions.applyTemplate(todayISO(), tpl.exerciseIds);
     onGoToLog();
-  }
-
-  function addExercise() {
-    const name = newExercise.trim();
-    if (!name) return;
-    actions.addCustomExercise(name, parseTags(newTags));
-    setNewExercise('');
-    setNewTags('');
-  }
-
-  function editTags(id: string, name: string, current: string[]) {
-    const input = window.prompt(`Tags for ${name} (comma-separated):`, current.join(', '));
-    if (input !== null) actions.updateExerciseTags(id, parseTags(input));
   }
 
   function removeExercise(id: string, name: string) {
@@ -124,30 +111,14 @@ export default function ExercisesScreen({ onGoToLog }: { onGoToLog: () => void }
 
         <section className="card">
           <h3>My exercises</h3>
-          <div className="stack" style={{ gap: 8, marginBottom: 10 }}>
-            <input
-              className="input"
-              placeholder="New exercise name (e.g. Squat)"
-              value={newExercise}
-              onChange={(e) => setNewExercise(e.target.value)}
-            />
-            <div className="row">
-              <input
-                className="input"
-                placeholder="Tags, comma-separated (e.g. legs, comp)"
-                value={newTags}
-                onChange={(e) => setNewTags(e.target.value)}
-              />
-              <button
-                type="button"
-                className="btn accent"
-                onClick={addExercise}
-                disabled={!newExercise.trim()}
-              >
-                Add
-              </button>
-            </div>
-          </div>
+          <button
+            type="button"
+            className="btn accent block"
+            style={{ marginBottom: 10 }}
+            onClick={() => setExEditing({ id: null, name: '', tags: [] })}
+          >
+            + New exercise
+          </button>
 
           {tags.length > 0 && (
             <div className="chips-row" style={{ marginBottom: 8 }}>
@@ -212,8 +183,8 @@ export default function ExercisesScreen({ onGoToLog }: { onGoToLog: () => void }
                   <button
                     type="button"
                     className="icon-btn small"
-                    aria-label={`Edit tags for ${e.name}`}
-                    onClick={() => editTags(e.id, e.name, e.tags ?? [])}
+                    aria-label={`Edit ${e.name}`}
+                    onClick={() => setExEditing({ id: e.id, name: e.name, tags: [...(e.tags ?? [])] })}
                   >
                     ✎
                   </button>
@@ -239,6 +210,7 @@ export default function ExercisesScreen({ onGoToLog }: { onGoToLog: () => void }
         </section>
       </div>
       {editing && <TemplateEditor initial={editing} onClose={() => setEditing(null)} />}
+      {exEditing && <ExerciseEditorSheet initial={exEditing} onClose={() => setExEditing(null)} />}
     </div>
   );
 }
