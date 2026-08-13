@@ -4,16 +4,16 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
 /**
- * Display version: 1.N where N auto-increments with every push.
- * Derived from the git commit count; the baseline of 3 makes the
- * commit that introduced versioning show as 1.0.
+ * Display version: 2.N where N auto-increments with every push.
+ * Derived from the git commit count; the baseline of 16 makes the
+ * commit that declared 2.0 show as 2.0.
  */
 function computeVersion(): string {
   try {
     const count = Number(execSync('git rev-list --count HEAD').toString().trim());
-    return `1.${Math.max(0, count - 3)}`;
+    return `2.${Math.max(0, count - 16)}`;
   } catch {
-    return '1.x';
+    return '2.x';
   }
 }
 
