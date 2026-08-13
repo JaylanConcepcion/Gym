@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { BIG3, exerciseName } from '../lib/exercises';
 import { prRecords } from '../lib/stats';
 import { useApp } from '../lib/store';
-import { formatWeightValue, kgToDisplay, roundTo } from '../lib/units';
+import { formatWeightValue, roundTo } from '../lib/units';
 
 const PCT_OPTIONS = [40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100];
 
