@@ -65,15 +65,16 @@ export function mergeData(local: AppData, remote: AppData): AppData {
     })
     .sort((a, b) => a.date.localeCompare(b.date));
 
+  const exStamp = (e: ExerciseDef) => Math.max(e.updatedAt ?? 0, e.createdAt ?? 0);
   const exById = new Map<string, ExerciseDef>();
   for (const e of [...local.customExercises, ...remote.customExercises]) {
     const cur = exById.get(e.id);
-    if (!cur || (e.createdAt ?? 0) > (cur.createdAt ?? 0)) exById.set(e.id, e);
+    if (!cur || exStamp(e) > exStamp(cur)) exById.set(e.id, e);
   }
   const customExercises = [...exById.values()]
     .filter((e) => {
       const t = tombs.get(`exercise:${e.id}`);
-      return !t || (e.createdAt ?? 0) > t.deletedAt;
+      return !t || exStamp(e) > t.deletedAt;
     })
     .sort((a, b) => a.id.localeCompare(b.id));
 

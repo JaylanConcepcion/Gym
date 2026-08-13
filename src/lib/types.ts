@@ -4,8 +4,12 @@ export interface ExerciseDef {
   id: string;
   name: string;
   isCustom?: boolean;
+  /** User labels like "legs" or "comp lift"; drives filtering in the bank. */
+  tags?: string[];
   /** ms epoch; used to resolve deletes vs re-creates across devices. */
   createdAt?: number;
+  /** ms epoch of the last edit (e.g. tag changes); drives cross-device merge. */
+  updatedAt?: number;
 }
 
 export interface WorkoutSet {

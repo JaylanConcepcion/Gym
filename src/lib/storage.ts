@@ -55,7 +55,9 @@ export function normalizeData(raw: unknown): AppData | null {
       id: e.id,
       name: e.name,
       isCustom: true,
-      createdAt: typeof e.createdAt === 'number' ? e.createdAt : 0
+      tags: Array.isArray(e.tags) ? e.tags.filter((t) => typeof t === 'string') : [],
+      createdAt: typeof e.createdAt === 'number' ? e.createdAt : 0,
+      updatedAt: typeof e.updatedAt === 'number' ? e.updatedAt : 0
     })),
     sessions: (d.sessions as Session[]).map((s) => ({
       id: s.id,

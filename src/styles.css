@@ -733,6 +733,23 @@ h3 {
   min-width: 0;
 }
 
+.ex-info {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.ex-tags {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.tag.mini {
+  padding: 2px 7px;
+  font-size: 10.5px;
+}
+
 .chip-divider {
   width: 1px;
   align-self: stretch;

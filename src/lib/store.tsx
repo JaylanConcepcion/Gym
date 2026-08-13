@@ -20,7 +20,8 @@ type Action =
   | { type: 'delete-session'; date: string; at: number }
   | { type: 'set-bodyweight'; date: string; weightKg: number | null; at: number }
   | { type: 'set-units'; units: Units; at: number }
-  | { type: 'add-custom-exercise'; id: string; name: string; at: number }
+  | { type: 'add-custom-exercise'; id: string; name: string; tags: string[]; at: number }
+  | { type: 'update-exercise-tags'; id: string; tags: string[]; at: number }
   | { type: 'remove-custom-exercise'; id: string; at: number }
   | { type: 'save-template'; id: string; name: string; exerciseIds: string[]; at: number }
   | { type: 'delete-template'; id: string; at: number }
@@ -154,8 +155,22 @@ function reducer(data: AppData, action: Action): AppData {
         ...data,
         customExercises: [
           ...data.customExercises,
-          { id: action.id, name: action.name, isCustom: true, createdAt: action.at }
+          {
+            id: action.id,
+            name: action.name,
+            isCustom: true,
+            tags: action.tags,
+            createdAt: action.at,
+            updatedAt: action.at
+          }
         ]
+      };
+    case 'update-exercise-tags':
+      return {
+        ...data,
+        customExercises: data.customExercises.map((e) =>
+          e.id === action.id ? { ...e, tags: action.tags, updatedAt: action.at } : e
+        )
       };
     case 'remove-custom-exercise':
       return {
@@ -260,14 +275,16 @@ export function useActions() {
       setBodyWeight: (date: string, weightKg: number | null) =>
         dispatch({ type: 'set-bodyweight', date, weightKg, at: Date.now() }),
       setUnits: (units: Units) => dispatch({ type: 'set-units', units, at: Date.now() }),
-      addCustomExercise: (name: string): string => {
+      addCustomExercise: (name: string, tags: string[] = []): string => {
         // Reuse the legacy id when the name matches, so old history reconnects.
         const id = builtinIdForName(name) ?? `custom-${uid()}`;
-        dispatch({ type: 'add-custom-exercise', id, name: name.trim(), at: Date.now() });
+        dispatch({ type: 'add-custom-exercise', id, name: name.trim(), tags, at: Date.now() });
         // Creating a lift always means the user wants it visible again.
         dispatch({ type: 'set-exercise-hidden', id, hidden: false, at: Date.now() });
         return id;
       },
+      updateExerciseTags: (id: string, tags: string[]) =>
+        dispatch({ type: 'update-exercise-tags', id, tags, at: Date.now() }),
       removeCustomExercise: (id: string) =>
         dispatch({ type: 'remove-custom-exercise', id, at: Date.now() }),
       saveTemplate: (name: string, exerciseIds: string[], id?: string): string => {

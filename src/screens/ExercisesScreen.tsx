@@ -1,19 +1,36 @@
 import { useMemo, useState } from 'react';
 import TemplateEditor, { type TemplateDraft } from '../components/TemplateEditor';
 import { todayISO } from '../lib/dates';
-import { exerciseName, hiddenExerciseIds } from '../lib/exercises';
+import { allTags, exerciseName, hasTag, hiddenExerciseIds, parseTags } from '../lib/exercises';
 import { allLoggedSets } from '../lib/stats';
 import { useActions, useApp } from '../lib/store';
+
+type SortMode = 'az' | 'new';
 
 export default function ExercisesScreen({ onGoToLog }: { onGoToLog: () => void }) {
   const { data } = useApp();
   const actions = useActions();
   const [editing, setEditing] = useState<TemplateDraft | null>(null);
   const [newExercise, setNewExercise] = useState('');
+  const [newTags, setNewTags] = useState('');
+  const [tagFilter, setTagFilter] = useState<string | null>(null);
+  const [sortMode, setSortMode] = useState<SortMode>('az');
 
   const usedIds = useMemo(() => new Set(allLoggedSets(data).map((s) => s.exerciseId)), [data]);
   const hidden = useMemo(() => hiddenExerciseIds(data), [data]);
+  const tags = useMemo(() => allTags(data), [data]);
   const templates = [...data.templates].sort((a, b) => a.name.localeCompare(b.name));
+
+  const list = useMemo(() => {
+    const filtered = tagFilter
+      ? data.customExercises.filter((e) => hasTag(e, tagFilter))
+      : [...data.customExercises];
+    return filtered.sort((a, b) =>
+      sortMode === 'az'
+        ? a.name.localeCompare(b.name)
+        : (b.createdAt ?? 0) - (a.createdAt ?? 0)
+    );
+  }, [data.customExercises, tagFilter, sortMode]);
 
   function useToday(templateId: string) {
     const tpl = data.templates.find((t) => t.id === templateId);
@@ -25,8 +42,14 @@ export default function ExercisesScreen({ onGoToLog }: { onGoToLog: () => void }
   function addExercise() {
     const name = newExercise.trim();
     if (!name) return;
-    actions.addCustomExercise(name);
+    actions.addCustomExercise(name, parseTags(newTags));
     setNewExercise('');
+    setNewTags('');
+  }
+
+  function editTags(id: string, name: string, current: string[]) {
+    const input = window.prompt(`Tags for ${name} (comma-separated):`, current.join(', '));
+    if (input !== null) actions.updateExerciseTags(id, parseTags(input));
   }
 
   function removeExercise(id: string, name: string) {
@@ -34,7 +57,7 @@ export default function ExercisesScreen({ onGoToLog }: { onGoToLog: () => void }
       window.alert(`"${name}" has logged sets, so it can't be deleted. Hide it instead.`);
       return;
     }
-    if (window.confirm(`Delete custom exercise "${name}"?`)) {
+    if (window.confirm(`Delete exercise "${name}"?`)) {
       actions.removeCustomExercise(id);
     }
   }
@@ -101,30 +124,99 @@ export default function ExercisesScreen({ onGoToLog }: { onGoToLog: () => void }
 
         <section className="card">
           <h3>My exercises</h3>
-          <div className="sub dim" style={{ marginBottom: 8 }}>
-            Your list, your lifts. Hide ones you're not running right now (history is kept); delete
-            is available while a lift has no logged sets.
-          </div>
-          <div className="row" style={{ marginBottom: 8 }}>
+          <div className="stack" style={{ gap: 8, marginBottom: 10 }}>
             <input
               className="input"
               placeholder="New exercise name (e.g. Squat)"
               value={newExercise}
               onChange={(e) => setNewExercise(e.target.value)}
             />
-            <button type="button" className="btn ghost" onClick={addExercise} disabled={!newExercise.trim()}>
-              Add
-            </button>
+            <div className="row">
+              <input
+                className="input"
+                placeholder="Tags, comma-separated (e.g. legs, comp)"
+                value={newTags}
+                onChange={(e) => setNewTags(e.target.value)}
+              />
+              <button
+                type="button"
+                className="btn accent"
+                onClick={addExercise}
+                disabled={!newExercise.trim()}
+              >
+                Add
+              </button>
+            </div>
           </div>
+
+          {tags.length > 0 && (
+            <div className="chips-row" style={{ marginBottom: 8 }}>
+              <button
+                type="button"
+                className={`chip small${tagFilter == null ? ' active' : ''}`}
+                onClick={() => setTagFilter(null)}
+              >
+                All
+              </button>
+              {tags.map((t) => (
+                <button
+                  key={t.toLowerCase()}
+                  type="button"
+                  className={`chip small${tagFilter?.toLowerCase() === t.toLowerCase() ? ' active' : ''}`}
+                  onClick={() => setTagFilter(tagFilter?.toLowerCase() === t.toLowerCase() ? null : t)}
+                >
+                  {t}
+                </button>
+              ))}
+              <span className="chip-divider" />
+              <button
+                type="button"
+                className={`chip small${sortMode === 'az' ? ' active' : ''}`}
+                onClick={() => setSortMode('az')}
+              >
+                A–Z
+              </button>
+              <button
+                type="button"
+                className={`chip small${sortMode === 'new' ? ' active' : ''}`}
+                onClick={() => setSortMode('new')}
+              >
+                Newest
+              </button>
+            </div>
+          )}
+
           {data.customExercises.length === 0 && (
             <div className="empty">Nothing here yet — add your first lift above.</div>
           )}
-          {data.customExercises.map((e) => {
+          {list.length === 0 && data.customExercises.length > 0 && (
+            <div className="empty">No lifts with this tag.</div>
+          )}
+          {list.map((e) => {
             const isHidden = hidden.has(e.id);
             return (
               <div key={e.id} className={`list-row static${isHidden ? ' muted' : ''}`}>
-                <span>{e.name}</span>
+                <span className="ex-info">
+                  <span>{e.name}</span>
+                  {(e.tags ?? []).length > 0 && (
+                    <span className="ex-tags">
+                      {(e.tags ?? []).map((t) => (
+                        <span key={t} className="tag mini">
+                          {t}
+                        </span>
+                      ))}
+                    </span>
+                  )}
+                </span>
                 <span className="row" style={{ gap: 6 }}>
+                  <button
+                    type="button"
+                    className="icon-btn small"
+                    aria-label={`Edit tags for ${e.name}`}
+                    onClick={() => editTags(e.id, e.name, e.tags ?? [])}
+                  >
+                    ✎
+                  </button>
                   <button
                     type="button"
                     className="btn ghost small"

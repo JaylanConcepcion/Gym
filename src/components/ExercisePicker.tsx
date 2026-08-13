@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { visibleExercises } from '../lib/exercises';
+import { allTags, hasTag, visibleExercises } from '../lib/exercises';
 import { useActions, useApp } from '../lib/store';
 
 export default function ExercisePicker({
@@ -12,11 +12,13 @@ export default function ExercisePicker({
   const { data } = useApp();
   const actions = useActions();
   const [query, setQuery] = useState('');
+  const [tagFilter, setTagFilter] = useState<string | null>(null);
 
-  const options = visibleExercises(data);
+  const tags = allTags(data);
+  const options = visibleExercises(data).filter((e) => !tagFilter || hasTag(e, tagFilter));
   const q = query.trim().toLowerCase();
   const filtered = q ? options.filter((e) => e.name.toLowerCase().includes(q)) : options;
-  const hasExact = options.some((e) => e.name.toLowerCase() === q);
+  const hasExact = visibleExercises(data).some((e) => e.name.toLowerCase() === q);
 
   return (
     <div className="sheet-overlay" onClick={onClose}>
@@ -34,6 +36,27 @@ export default function ExercisePicker({
           onChange={(e) => setQuery(e.target.value)}
           autoFocus
         />
+        {tags.length > 0 && (
+          <div className="chips-row">
+            <button
+              type="button"
+              className={`chip small${tagFilter == null ? ' active' : ''}`}
+              onClick={() => setTagFilter(null)}
+            >
+              All
+            </button>
+            {tags.map((t) => (
+              <button
+                key={t.toLowerCase()}
+                type="button"
+                className={`chip small${tagFilter?.toLowerCase() === t.toLowerCase() ? ' active' : ''}`}
+                onClick={() => setTagFilter(tagFilter?.toLowerCase() === t.toLowerCase() ? null : t)}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="sheet-list">
           {q && !hasExact && (
             <button
