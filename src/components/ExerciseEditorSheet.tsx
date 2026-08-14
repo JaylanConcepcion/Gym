@@ -21,6 +21,7 @@ export default function ExerciseEditorSheet({
   const [name, setName] = useState(initial.name);
   const [tags, setTags] = useState<string[]>(initial.tags);
   const [tagInput, setTagInput] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
   const suggestions = allTags(data).filter(
     (t) => !tags.some((x) => x.toLowerCase() === t.toLowerCase())
@@ -46,7 +47,7 @@ export default function ExerciseEditorSheet({
       (e) => e.id !== initial.id && e.name.toLowerCase() === trimmed.toLowerCase()
     );
     if (clash) {
-      window.alert(`You already have a lift named "${trimmed}".`);
+      setError(`You already have a lift named "${trimmed}".`);
       return;
     }
     if (initial.id) {
@@ -73,10 +74,14 @@ export default function ExerciseEditorSheet({
             className="input"
             placeholder="e.g. Pause Squat"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => {
+              setName(e.target.value);
+              setError(null);
+            }}
             autoFocus={!initial.id}
           />
         </label>
+        {error && <div className="inline-notice">{error}</div>}
 
         <div className="field">
           <span>Tags</span>

@@ -5,6 +5,7 @@ import { useActions, useApp } from '../lib/store';
 import { formatTonnage, formatWeightValue } from '../lib/units';
 import BodyWeightCard from '../components/BodyWeightCard';
 import CardioCard from '../components/CardioCard';
+import ConfirmButton from '../components/ConfirmButton';
 import SessionEditor from '../components/SessionEditor';
 import { sessionCardioCalories } from '../lib/cardio';
 
@@ -27,18 +28,16 @@ export default function HistoryScreen() {
           <BodyWeightCard date={selected} />
           <SessionEditor date={selected} />
           <CardioCard date={selected} />
-          <button
-            type="button"
+          <ConfirmButton
             className="btn ghost danger block"
-            onClick={() => {
-              if (window.confirm('Delete this entire session?')) {
-                actions.deleteSession(selected);
-                setSelected(null);
-              }
+            confirmLabel="Tap again to delete this session"
+            onConfirm={() => {
+              actions.deleteSession(selected);
+              setSelected(null);
             }}
           >
             Delete session
-          </button>
+          </ConfirmButton>
         </div>
       </div>
     );
@@ -87,19 +86,14 @@ export default function HistoryScreen() {
                         BW {formatWeightValue(bw.weightKg, units)} {units}
                       </span>
                     )}
-                    <button
-                      type="button"
+                    <ConfirmButton
                       className="icon-btn small"
-                      aria-label={`Delete ${formatLongDate(s.date)}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (window.confirm(`Delete the whole session from ${formatLongDate(s.date)}?`)) {
-                          actions.deleteSession(s.date);
-                        }
-                      }}
+                      confirmLabel="Delete?"
+                      ariaLabel={`Delete ${formatLongDate(s.date)}`}
+                      onConfirm={() => actions.deleteSession(s.date)}
                     >
                       ✕
-                    </button>
+                    </ConfirmButton>
                   </span>
                 </div>
                 <div className="sub">

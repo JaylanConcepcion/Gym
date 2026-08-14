@@ -4,6 +4,7 @@ import { exerciseName } from '../lib/exercises';
 import { useActions, useApp } from '../lib/store';
 import { displayToKg, formatWeightValue } from '../lib/units';
 import type { ExerciseBlock, Units, WorkoutSet } from '../lib/types';
+import ConfirmButton from './ConfirmButton';
 
 const RPE_VALUES = [6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10];
 
@@ -159,12 +160,7 @@ export default function ExerciseBlockCard({ date, block }: { date: string; block
   }
 
   function removeBlock() {
-    if (
-      block.sets.length === 0 ||
-      window.confirm(`Remove ${exName} and its ${block.sets.length} set(s) from this day?`)
-    ) {
-      actions.removeBlock(date, block.id);
-    }
+    actions.removeBlock(date, block.id);
   }
 
   return (
@@ -180,9 +176,15 @@ export default function ExerciseBlockCard({ date, block }: { date: string; block
             </div>
           )}
         </div>
-        <button type="button" className="icon-btn" onClick={removeBlock} aria-label={`Remove ${exName}`}>
-          ✕
-        </button>
+        {block.sets.length === 0 ? (
+          <button type="button" className="icon-btn" onClick={removeBlock} aria-label={`Remove ${exName}`}>
+            ✕
+          </button>
+        ) : (
+          <ConfirmButton className="icon-btn" confirmLabel="Remove?" ariaLabel={`Remove ${exName}`} onConfirm={removeBlock}>
+            ✕
+          </ConfirmButton>
+        )}
       </header>
 
       <div className="set-grid head">

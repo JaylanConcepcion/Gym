@@ -1,4 +1,5 @@
 import { useRef, useState, type ChangeEvent } from 'react';
+import ConfirmButton from '../components/ConfirmButton';
 import { CM_PER_IN } from '../lib/cardio';
 import { formatRelativeTime, todayISO } from '../lib/dates';
 import { TOKEN_URL } from '../lib/gist';
@@ -14,6 +15,9 @@ export default function SettingsScreen() {
   const sync = useSync();
   const units = data.settings.units;
   const [tokenInput, setTokenInput] = useState('');
+  const [copied, setCopied] = useState(false);
+  const [backupNotice, setBackupNotice] = useState<string | null>(null);
+  const [pendingImport, setPendingImport] = useState<ReturnType<typeof normalizeData>>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [heightFtStr, setHeightFtStr] = useState(() => {
@@ -72,9 +76,10 @@ export default function SettingsScreen() {
   async function copyData() {
     try {
       await navigator.clipboard.writeText(JSON.stringify(data));
-      window.alert('Backup JSON copied to clipboard.');
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     } catch {
-      window.alert('Could not access the clipboard.');
+      setBackupNotice('Could not access the clipboard.');
     }
   }
 
@@ -82,39 +87,29 @@ export default function SettingsScreen() {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
+    setBackupNotice(null);
     file.text().then((text) => {
       try {
         const parsed = normalizeData(JSON.parse(text));
         if (!parsed) {
-          window.alert('That file is not a valid backup.');
+          setBackupNotice('That file is not a valid backup.');
           return;
         }
-        const sets = parsed.sessions.reduce(
-          (n, s) => n + s.blocks.reduce((m, b) => m + b.sets.length, 0),
-          0
-        );
-        if (
-          window.confirm(
-            `Replace current data with this backup? (${parsed.sessions.length} sessions, ${sets} sets, ${parsed.bodyWeights.length} weigh-ins)`
-          )
-        ) {
-          actions.importData(parsed);
-        }
+        setPendingImport(parsed);
       } catch {
-        window.alert('Could not read that file.');
+        setBackupNotice('Could not read that file.');
       }
     });
   }
 
+  function confirmImport() {
+    if (pendingImport) actions.importData(pendingImport);
+    setPendingImport(null);
+  }
+
   function clearAll() {
-    const extra = sync.enabled ? ' Sync will be disconnected on this device first.' : '';
-    if (
-      window.confirm(`Delete ALL sessions, bodyweight entries and custom exercises on this device?${extra}`) &&
-      window.confirm('Really sure? This cannot be undone. (Export a backup first!)')
-    ) {
-      if (sync.enabled) sync.disconnect();
-      actions.clearAll();
-    }
+    if (sync.enabled) sync.disconnect();
+    actions.clearAll();
   }
 
   return (
@@ -305,7 +300,7 @@ export default function SettingsScreen() {
               Export file
             </button>
             <button type="button" className="btn ghost" onClick={copyData}>
-              Copy JSON
+              {copied ? 'Copied ✓' : 'Copy JSON'}
             </button>
             <button type="button" className="btn ghost" onClick={() => fileRef.current?.click()}>
               Import file
@@ -318,13 +313,40 @@ export default function SettingsScreen() {
               onChange={onImportFile}
             />
           </div>
+          {backupNotice && <div className="inline-notice">{backupNotice}</div>}
+          {pendingImport && (
+            <div className="row wrap" style={{ marginTop: 10 }}>
+              <div className="sub" style={{ flex: '1 1 100%' }}>
+                Replace current data with this backup? ({pendingImport.sessions.length} sessions,{' '}
+                {pendingImport.sessions.reduce(
+                  (n, s) => n + s.blocks.reduce((m, b) => m + b.sets.length, 0),
+                  0
+                )}{' '}
+                sets, {pendingImport.bodyWeights.length} weigh-ins)
+              </div>
+              <button type="button" className="btn accent" onClick={confirmImport}>
+                Replace data
+              </button>
+              <button type="button" className="btn ghost" onClick={() => setPendingImport(null)}>
+                Cancel
+              </button>
+            </div>
+          )}
         </section>
 
         <section className="card danger-zone">
           <h3>Danger zone</h3>
-          <button type="button" className="btn ghost danger" onClick={clearAll}>
+          <div className="sub dim" style={{ marginBottom: 8 }}>
+            Erases everything on this device{sync.enabled ? ' and disconnects sync' : ''}. Export a
+            backup first.
+          </div>
+          <ConfirmButton
+            className="btn ghost danger"
+            confirmLabel="Tap again — erases everything"
+            onConfirm={clearAll}
+          >
             Clear all data
-          </button>
+          </ConfirmButton>
         </section>
 
         <div className="sub dim about">

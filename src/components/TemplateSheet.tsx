@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { exerciseName } from '../lib/exercises';
 import { useActions, useApp } from '../lib/store';
 import type { WorkoutTemplate } from '../lib/types';
+import ConfirmButton from './ConfirmButton';
 import TemplateEditor, { type TemplateDraft } from './TemplateEditor';
 
 /**
@@ -59,16 +60,14 @@ export default function TemplateSheet({ date, onClose }: { date: string; onClose
               >
                 ✎
               </button>
-              <button
-                type="button"
+              <ConfirmButton
                 className="icon-btn small"
-                aria-label={`Delete ${t.name}`}
-                onClick={() => {
-                  if (window.confirm(`Delete lifting day "${t.name}"?`)) actions.deleteTemplate(t.id);
-                }}
+                confirmLabel="Delete?"
+                ariaLabel={`Delete ${t.name}`}
+                onConfirm={() => actions.deleteTemplate(t.id)}
               >
                 ✕
-              </button>
+              </ConfirmButton>
             </div>
           ))}
         </div>

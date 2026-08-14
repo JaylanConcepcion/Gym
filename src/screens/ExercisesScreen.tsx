@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import ConfirmButton from '../components/ConfirmButton';
 import ExerciseEditorSheet, { type ExerciseDraft } from '../components/ExerciseEditorSheet';
 import TemplateEditor, { type TemplateDraft } from '../components/TemplateEditor';
 import { todayISO } from '../lib/dates';
@@ -15,6 +16,14 @@ export default function ExercisesScreen({ onGoToLog }: { onGoToLog: () => void }
   const [exEditing, setExEditing] = useState<ExerciseDraft | null>(null);
   const [tagFilter, setTagFilter] = useState<string | null>(null);
   const [sortMode, setSortMode] = useState<SortMode>('az');
+  const [notice, setNotice] = useState<string | null>(null);
+  const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function showNotice(text: string) {
+    setNotice(text);
+    if (noticeTimer.current) clearTimeout(noticeTimer.current);
+    noticeTimer.current = setTimeout(() => setNotice(null), 3500);
+  }
 
   const usedIds = useMemo(() => new Set(allLoggedSets(data).map((s) => s.exerciseId)), [data]);
   const hidden = useMemo(() => hiddenExerciseIds(data), [data]);
@@ -41,12 +50,10 @@ export default function ExercisesScreen({ onGoToLog }: { onGoToLog: () => void }
 
   function removeExercise(id: string, name: string) {
     if (usedIds.has(id)) {
-      window.alert(`"${name}" has logged sets, so it can't be deleted. Hide it instead.`);
+      showNotice(`"${name}" has logged sets, so it can't be deleted. Hide it instead.`);
       return;
     }
-    if (window.confirm(`Delete exercise "${name}"?`)) {
-      actions.removeCustomExercise(id);
-    }
+    actions.removeCustomExercise(id);
   }
 
   return (
@@ -86,16 +93,14 @@ export default function ExercisesScreen({ onGoToLog }: { onGoToLog: () => void }
                 >
                   ✎
                 </button>
-                <button
-                  type="button"
+                <ConfirmButton
                   className="icon-btn small"
-                  aria-label={`Delete ${t.name}`}
-                  onClick={() => {
-                    if (window.confirm(`Delete lifting day "${t.name}"?`)) actions.deleteTemplate(t.id);
-                  }}
+                  confirmLabel="Delete?"
+                  ariaLabel={`Delete ${t.name}`}
+                  onConfirm={() => actions.deleteTemplate(t.id)}
                 >
                   ✕
-                </button>
+                </ConfirmButton>
               </span>
             </div>
           ))}
@@ -157,6 +162,7 @@ export default function ExercisesScreen({ onGoToLog }: { onGoToLog: () => void }
             </div>
           )}
 
+          {notice && <div className="inline-notice">{notice}</div>}
           {data.customExercises.length === 0 && (
             <div className="empty">Nothing here yet — add your first lift above.</div>
           )}
@@ -195,14 +201,25 @@ export default function ExercisesScreen({ onGoToLog }: { onGoToLog: () => void }
                   >
                     {isHidden ? 'Show' : 'Hide'}
                   </button>
-                  <button
-                    type="button"
-                    className="icon-btn small"
-                    onClick={() => removeExercise(e.id, e.name)}
-                    aria-label={`Delete ${e.name}`}
-                  >
-                    ✕
-                  </button>
+                  {usedIds.has(e.id) ? (
+                    <button
+                      type="button"
+                      className="icon-btn small"
+                      onClick={() => removeExercise(e.id, e.name)}
+                      aria-label={`Delete ${e.name}`}
+                    >
+                      ✕
+                    </button>
+                  ) : (
+                    <ConfirmButton
+                      className="icon-btn small"
+                      confirmLabel="Delete?"
+                      ariaLabel={`Delete ${e.name}`}
+                      onConfirm={() => removeExercise(e.id, e.name)}
+                    >
+                      ✕
+                    </ConfirmButton>
+                  )}
                 </span>
               </div>
             );
