@@ -99,7 +99,12 @@ function reducer(data: AppData, action: Action): AppData {
         .filter((s) => s.blocks.length > 0 || s.cardio.length > 0);
       return { ...data, sessions };
     }
-    case 'add-set':
+    case 'add-set': {
+      // Set actions never create sessions/blocks; if the block is gone (e.g.
+      // deleted just before a deferred auto-commit), this must be a no-op so
+      // it can't resurrect an empty ghost session.
+      const target = data.sessions.find((s) => s.date === action.date);
+      if (!target || !target.blocks.some((b) => b.id === action.blockId)) return data;
       return {
         ...data,
         sessions: upsertSession(data, action.date, action.at, (s) => ({
@@ -117,7 +122,10 @@ function reducer(data: AppData, action: Action): AppData {
           )
         }))
       };
-    case 'update-set':
+    }
+    case 'update-set': {
+      const target = data.sessions.find((s) => s.date === action.date);
+      if (!target || !target.blocks.some((b) => b.id === action.blockId)) return data;
       return {
         ...data,
         sessions: upsertSession(data, action.date, action.at, (s) => ({
@@ -136,7 +144,10 @@ function reducer(data: AppData, action: Action): AppData {
           )
         }))
       };
-    case 'remove-set':
+    }
+    case 'remove-set': {
+      const target = data.sessions.find((s) => s.date === action.date);
+      if (!target || !target.blocks.some((b) => b.id === action.blockId)) return data;
       return {
         ...data,
         sessions: upsertSession(data, action.date, action.at, (s) => ({
@@ -146,6 +157,7 @@ function reducer(data: AppData, action: Action): AppData {
           )
         }))
       };
+    }
     case 'delete-session': {
       const victim = data.sessions.find((s) => s.date === action.date);
       return {

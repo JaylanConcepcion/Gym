@@ -420,21 +420,9 @@ h3 {
   white-space: nowrap;
 }
 
-.add-set-btn {
-  width: 28px;
-  height: 34px;
-  border-radius: 9px;
-  background: var(--accent);
-  color: #1b0606;
-  font-size: 18px;
-  font-weight: 700;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.add-set-btn:disabled {
-  opacity: 0.35;
+.log-set-btn {
+  margin-top: 10px;
+  font-variant-numeric: tabular-nums;
 }
 
 .set-editor {

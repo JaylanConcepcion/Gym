@@ -142,11 +142,27 @@ export default function ExerciseBlockCard({ date, block }: { date: string; block
   const [dWeight, setDWeight] = useState(last ? formatWeightValue(last.weightKg, units) : '');
   const [dReps, setDReps] = useState(last ? String(last.reps) : '');
   const [dRpe, setDRpe] = useState<number | null>(last ? last.rpe : 8);
+  /** True once the user typed into the draft; drives the leave-safety commit. */
+  const [dDirty, setDDirty] = useState(false);
 
   const weightVal = parseFloat(dWeight.replace(',', '.'));
   const reps = parseInt(dReps, 10);
   const valid = Number.isFinite(weightVal) && weightVal > 0 && Number.isFinite(reps) && reps >= 1;
   const draftE1rm = valid ? estimate1RM(displayToKg(weightVal, units), reps, dRpe) : null;
+
+  // If the card unmounts (tab switch, closing the day) with typed-but-unlogged
+  // numbers, log them automatically instead of silently discarding them. The
+  // reducer no-ops if the block was deleted, so this can't create ghosts.
+  const pendingRef = useRef<{ weightKg: number; reps: number; rpe: number | null } | null>(null);
+  pendingRef.current =
+    dDirty && valid ? { weightKg: displayToKg(weightVal, units), reps, rpe: dRpe } : null;
+  useEffect(
+    () => () => {
+      if (pendingRef.current) actions.addSet(date, block.id, pendingRef.current);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
 
   const topSet = block.sets.reduce<WorkoutSet | null>(
     (top, s) =>
@@ -157,6 +173,7 @@ export default function ExerciseBlockCard({ date, block }: { date: string; block
   function addSet() {
     if (!valid) return;
     actions.addSet(date, block.id, { weightKg: displayToKg(weightVal, units), reps, rpe: dRpe });
+    setDDirty(false);
   }
 
   function removeBlock() {
@@ -206,7 +223,10 @@ export default function ExerciseBlockCard({ date, block }: { date: string; block
           className="input compact"
           inputMode="decimal"
           value={dWeight}
-          onChange={(e) => setDWeight(e.target.value)}
+          onChange={(e) => {
+            setDWeight(e.target.value);
+            setDDirty(true);
+          }}
           placeholder="0"
           aria-label="New set weight"
         />
@@ -214,7 +234,10 @@ export default function ExerciseBlockCard({ date, block }: { date: string; block
           className="input compact"
           inputMode="numeric"
           value={dReps}
-          onChange={(e) => setDReps(e.target.value)}
+          onChange={(e) => {
+            setDReps(e.target.value);
+            setDDirty(true);
+          }}
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
               e.preventDefault();
@@ -226,16 +249,13 @@ export default function ExerciseBlockCard({ date, block }: { date: string; block
         />
         <RpeSelect value={dRpe} label="New set RPE" onChange={setDRpe} />
         <span className="set-e1rm-cell">{draftE1rm != null ? formatWeightValue(draftE1rm, units, 0) : ''}</span>
-        <button
-          type="button"
-          className="add-set-btn"
-          disabled={!valid}
-          onClick={addSet}
-          aria-label="Add set"
-        >
-          +
-        </button>
+        <span />
       </div>
+      <button type="button" className="btn accent block log-set-btn" disabled={!valid} onClick={addSet}>
+        {valid
+          ? `＋ Log set — ${dWeight} ${units} × ${dReps}${dRpe != null ? ` @${dRpe}` : ''}`
+          : '＋ Log set (enter weight & reps above)'}
+      </button>
     </section>
   );
 }
