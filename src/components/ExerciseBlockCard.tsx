@@ -8,6 +8,34 @@ import ConfirmButton from './ConfirmButton';
 
 const RPE_VALUES = [6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10];
 
+interface Draft {
+  w: string;
+  r: string;
+  rpe: number | null;
+  dirty: boolean;
+}
+
+/**
+ * Typed-but-not-yet-logged values survive tab switches without ever being
+ * committed implicitly — logging only happens via the Log set button.
+ */
+function loadDraft(blockId: string): Draft | null {
+  try {
+    const raw = sessionStorage.getItem(`pl-draft/${blockId}`);
+    return raw ? (JSON.parse(raw) as Draft) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveDraft(blockId: string, d: Draft) {
+  try {
+    sessionStorage.setItem(`pl-draft/${blockId}`, JSON.stringify(d));
+  } catch {
+    // Best effort only.
+  }
+}
+
 function RpeSelect({
   value,
   onChange,
@@ -139,30 +167,26 @@ export default function ExerciseBlockCard({ date, block }: { date: string; block
   const exName = exerciseName(data, block.exerciseId);
 
   const last = block.sets[block.sets.length - 1];
-  const [dWeight, setDWeight] = useState(last ? formatWeightValue(last.weightKg, units) : '');
-  const [dReps, setDReps] = useState(last ? String(last.reps) : '');
-  const [dRpe, setDRpe] = useState<number | null>(last ? last.rpe : 8);
-  /** True once the user typed into the draft; drives the leave-safety commit. */
-  const [dDirty, setDDirty] = useState(false);
+  const [dWeight, setDWeight] = useState(
+    () => loadDraft(block.id)?.w ?? (last ? formatWeightValue(last.weightKg, units) : '')
+  );
+  const [dReps, setDReps] = useState(() => loadDraft(block.id)?.r ?? (last ? String(last.reps) : ''));
+  const [dRpe, setDRpe] = useState<number | null>(() => {
+    const cached = loadDraft(block.id);
+    return cached ? cached.rpe : last ? last.rpe : 8;
+  });
+  /** True while the draft holds typed values that haven't been logged yet. */
+  const [dDirty, setDDirty] = useState(() => loadDraft(block.id)?.dirty ?? false);
+  const [justLogged, setJustLogged] = useState(false);
+
+  useEffect(() => {
+    saveDraft(block.id, { w: dWeight, r: dReps, rpe: dRpe, dirty: dDirty });
+  }, [block.id, dWeight, dReps, dRpe, dDirty]);
 
   const weightVal = parseFloat(dWeight.replace(',', '.'));
   const reps = parseInt(dReps, 10);
   const valid = Number.isFinite(weightVal) && weightVal > 0 && Number.isFinite(reps) && reps >= 1;
   const draftE1rm = valid ? estimate1RM(displayToKg(weightVal, units), reps, dRpe) : null;
-
-  // If the card unmounts (tab switch, closing the day) with typed-but-unlogged
-  // numbers, log them automatically instead of silently discarding them. The
-  // reducer no-ops if the block was deleted, so this can't create ghosts.
-  const pendingRef = useRef<{ weightKg: number; reps: number; rpe: number | null } | null>(null);
-  pendingRef.current =
-    dDirty && valid ? { weightKg: displayToKg(weightVal, units), reps, rpe: dRpe } : null;
-  useEffect(
-    () => () => {
-      if (pendingRef.current) actions.addSet(date, block.id, pendingRef.current);
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    []
-  );
 
   const topSet = block.sets.reduce<WorkoutSet | null>(
     (top, s) =>
@@ -174,6 +198,8 @@ export default function ExerciseBlockCard({ date, block }: { date: string; block
     if (!valid) return;
     actions.addSet(date, block.id, { weightKg: displayToKg(weightVal, units), reps, rpe: dRpe });
     setDDirty(false);
+    setJustLogged(true);
+    window.setTimeout(() => setJustLogged(false), 1400);
   }
 
   function removeBlock() {
@@ -217,7 +243,7 @@ export default function ExerciseBlockCard({ date, block }: { date: string; block
         <SetRow key={s.id} date={date} blockId={block.id} set={s} index={i} units={units} />
       ))}
 
-      <div className="set-grid draft">
+      <div className={`set-grid draft${dDirty && valid ? ' unlogged' : ''}`}>
         <span className="set-num">+</span>
         <input
           className="input compact"
@@ -251,10 +277,17 @@ export default function ExerciseBlockCard({ date, block }: { date: string; block
         <span className="set-e1rm-cell">{draftE1rm != null ? formatWeightValue(draftE1rm, units, 0) : ''}</span>
         <span />
       </div>
-      <button type="button" className="btn accent block log-set-btn" disabled={!valid} onClick={addSet}>
-        {valid
-          ? `＋ Log set — ${dWeight} ${units} × ${dReps}${dRpe != null ? ` @${dRpe}` : ''}`
-          : '＋ Log set (enter weight & reps above)'}
+      <button
+        type="button"
+        className={`btn accent block log-set-btn${dDirty && valid ? ' attention' : ''}`}
+        disabled={!valid}
+        onClick={addSet}
+      >
+        {justLogged
+          ? '✓ Logged — tap again for another set'
+          : valid
+            ? `＋ Log set — ${dWeight} ${units} × ${dReps}${dRpe != null ? ` @${dRpe}` : ''}`
+            : '＋ Log set (enter weight & reps above)'}
       </button>
     </section>
   );

@@ -425,6 +425,15 @@ h3 {
   font-variant-numeric: tabular-nums;
 }
 
+/* draft has typed values that aren't logged yet — nudge toward the button */
+.set-grid.draft.unlogged .input {
+  border-color: var(--accent);
+}
+
+.log-set-btn.attention {
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
 .set-editor {
   display: grid;
   gap: 10px;
