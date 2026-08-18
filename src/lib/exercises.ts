@@ -40,6 +40,17 @@ export function builtinIdForName(name: string): string | null {
   return BUILT_IN_EXERCISES.find((e) => e.name.toLowerCase() === n)?.id ?? null;
 }
 
+/** Body-part categories offered as one-tap tags and used for grouped sorting. */
+export const PRESET_CATEGORIES = ['Back', 'Biceps', 'Triceps', 'Shoulders', 'Chest', 'Legs'];
+
+/** First matching preset category for an exercise, or 'Other'. */
+export function categoryOf(e: { tags?: string[] }): string {
+  for (const c of PRESET_CATEGORIES) {
+    if ((e.tags ?? []).some((t) => t.toLowerCase() === c.toLowerCase())) return c;
+  }
+  return 'Other';
+}
+
 /** Every tag in use, sorted, case-insensitively deduped (first spelling wins). */
 export function allTags(data: AppData): string[] {
   const seen = new Map<string, string>();

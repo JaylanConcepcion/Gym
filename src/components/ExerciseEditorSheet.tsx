@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { allTags } from '../lib/exercises';
+import { allTags, PRESET_CATEGORIES } from '../lib/exercises';
 import { useActions, useApp } from '../lib/store';
 
 export interface ExerciseDraft {
@@ -23,9 +23,14 @@ export default function ExerciseEditorSheet({
   const [tagInput, setTagInput] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  const suggestions = allTags(data).filter(
-    (t) => !tags.some((x) => x.toLowerCase() === t.toLowerCase())
-  );
+  // Body-part categories first, then any other tags already in use.
+  const inTags = (t: string) => tags.some((x) => x.toLowerCase() === t.toLowerCase());
+  const suggestions = [
+    ...PRESET_CATEGORIES.filter((c) => !inTags(c)),
+    ...allTags(data).filter(
+      (t) => !inTags(t) && !PRESET_CATEGORIES.some((c) => c.toLowerCase() === t.toLowerCase())
+    )
+  ];
 
   function addTag(raw: string) {
     const t = raw.trim();

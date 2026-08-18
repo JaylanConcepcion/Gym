@@ -805,17 +805,33 @@ h3 {
   color: var(--text-dim);
 }
 
+.tpl-block {
+  border-bottom: 1px solid var(--border);
+}
+
+.tpl-block:last-of-type {
+  border-bottom: none;
+}
+
 .tpl-static {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
   padding: 10px 0;
-  border-bottom: 1px solid var(--border);
 }
 
-.tpl-static:last-of-type {
-  border-bottom: none;
+.tpl-detail {
+  padding: 0 2px 12px;
+}
+
+.cat-head {
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--accent);
+  padding: 12px 2px 4px;
 }
 
 .tpl-info {
