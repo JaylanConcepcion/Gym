@@ -32,6 +32,15 @@ body {
   -webkit-font-smoothing: antialiased;
   min-height: 100dvh;
   overscroll-behavior-y: none;
+  /* Any accidental sideways overflow makes mobile feel zoomed out — never allow it. */
+  overflow-x: hidden;
+}
+
+.content,
+.card,
+.sheet {
+  max-width: 100%;
+  min-width: 0;
 }
 
 button {
@@ -838,6 +847,14 @@ h3 {
   display: grid;
   gap: 2px;
   min-width: 0;
+  text-align: left;
+  flex: 1;
+}
+
+.tpl-info .tpl-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .ex-info {
@@ -1016,4 +1033,68 @@ a.btn {
 
 .tab-btn.active {
   color: var(--accent);
+}
+
+/* ---------- compact layout for narrow phones ---------- */
+
+@media (max-width: 420px) {
+  .content {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .card {
+    padding: 12px 10px;
+  }
+
+  .screen-header h1 {
+    font-size: 24px;
+  }
+
+  .btn {
+    padding: 11px 12px;
+    font-size: 14px;
+  }
+
+  .btn.small {
+    padding: 7px 9px;
+    font-size: 12.5px;
+  }
+
+  .chip {
+    padding: 8px 11px;
+    font-size: 13.5px;
+  }
+
+  .chip.small {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+
+  .set-grid {
+    grid-template-columns: 18px 1fr 1fr 64px 48px 26px;
+    gap: 4px;
+  }
+
+  .input.compact {
+    padding: 9px 4px;
+    font-size: 16px;
+  }
+
+  .set-e1rm-cell {
+    font-size: 10.5px;
+  }
+
+  .stat-value {
+    font-size: 20px;
+  }
+
+  .list-row.static {
+    gap: 6px;
+  }
+
+  .dd-btn {
+    padding: 11px 10px;
+    font-size: 13.5px;
+  }
 }
