@@ -265,10 +265,12 @@ export default function ProgressScreen() {
   const colorFor = (idx: number) => PALETTE[idx % PALETTE.length];
 
   // Rep filter applies only to the big three; every other lift charts its
-  // plain heaviest set per day.
+  // plain heaviest set per day. The classic powerlifting rep counts are
+  // always offered for SBD; anything else logged is added alongside.
   const big3Selected = selection.filter((id) => BIG3.includes(id));
   const repOptions = useMemo(() => {
-    const reps = new Set<number>();
+    if (big3Selected.length === 0) return [];
+    const reps = new Set<number>([1, 2, 3, 5]);
     for (const id of big3Selected) for (const r of repCountsForExercise(data, id)) reps.add(r);
     return [...reps].sort((a, b) => a - b);
     // eslint-disable-next-line react-hooks/exhaustive-deps
