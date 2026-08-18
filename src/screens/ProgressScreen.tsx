@@ -97,20 +97,22 @@ function ChartCard({ title, children }: { title: string; children: ReactElement 
   );
 }
 
-function AddLiftSheet({
+function LiftPickerSheet({
   data,
-  candidates,
-  onPick,
+  ids,
+  selection,
+  onToggle,
   onClose
 }: {
   data: AppData;
-  candidates: string[];
-  onPick: (id: string) => void;
+  ids: string[];
+  selection: string[];
+  onToggle: (id: string) => void;
   onClose: () => void;
 }) {
   const [query, setQuery] = useState('');
   const q = query.trim().toLowerCase();
-  const list = candidates
+  const list = ids
     .map((id) => ({ id, name: exerciseName(data, id) }))
     .filter((e) => !q || e.name.toLowerCase().includes(q))
     .sort((a, b) => a.name.localeCompare(b.name));
@@ -118,7 +120,7 @@ function AddLiftSheet({
     <div className="sheet-overlay" onClick={onClose}>
       <div className="sheet" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-header">
-          <h2>Add a lift to the graphs</h2>
+          <h2>Choose lifts to graph</h2>
           <button type="button" className="icon-btn" onClick={onClose} aria-label="Close">
             ✕
           </button>
@@ -128,16 +130,71 @@ function AddLiftSheet({
           placeholder="Search lifts…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          autoFocus
         />
         <div className="sheet-list">
           {list.length === 0 && <div className="empty">No matching lifts.</div>}
-          {list.map((e) => (
-            <button key={e.id} type="button" className="list-row" onClick={() => onPick(e.id)}>
-              <span>{e.name}</span>
-            </button>
-          ))}
+          {list.map((e) => {
+            const on = selection.includes(e.id);
+            return (
+              <button
+                key={e.id}
+                type="button"
+                className={`list-row${on ? ' selected-row' : ''}`}
+                onClick={() => onToggle(e.id)}
+              >
+                <span>{e.name}</span>
+                <span className={`check-dot${on ? ' on' : ''}`}>{on ? '✓' : ''}</span>
+              </button>
+            );
+          })}
         </div>
+        <button type="button" className="btn accent block" onClick={onClose}>
+          Done
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function GraphPickerSheet({
+  flags,
+  defs,
+  onToggle,
+  onClose
+}: {
+  flags: ChartFlags;
+  defs: Array<{ id: keyof ChartFlags; label: string }>;
+  onToggle: (id: keyof ChartFlags) => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="sheet-overlay" onClick={onClose}>
+      <div className="sheet" onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-header">
+          <h2>Which graphs to show</h2>
+          <button type="button" className="icon-btn" onClick={onClose} aria-label="Close">
+            ✕
+          </button>
+        </div>
+        <div className="sheet-list">
+          {defs.map((f) => {
+            const on = flags[f.id];
+            return (
+              <button
+                key={f.id}
+                type="button"
+                className={`list-row${on ? ' selected-row' : ''}`}
+                onClick={() => onToggle(f.id)}
+              >
+                <span>{f.label}</span>
+                <span className={`check-dot${on ? ' on' : ''}`}>{on ? '✓' : ''}</span>
+              </button>
+            );
+          })}
+        </div>
+        <button type="button" className="btn accent block" onClick={onClose}>
+          Done
+        </button>
       </div>
     </div>
   );
@@ -155,7 +212,8 @@ export default function ProgressScreen() {
   const [period, setPeriod] = useState<Period>(prefs.period ?? 'week');
   const [rangeId, setRangeId] = useState<RangeId>(prefs.range ?? 'all');
   const [repFilter, setRepFilter] = useState<number | null>(prefs.repFilter ?? null);
-  const [addOpen, setAddOpen] = useState(false);
+  const [liftsOpen, setLiftsOpen] = useState(false);
+  const [graphsOpen, setGraphsOpen] = useState(false);
 
   useEffect(() => {
     try {
@@ -186,20 +244,19 @@ export default function ProgressScreen() {
     return withData.length > 0 ? [withData[0]] : [];
   }, [selected, known, withData]);
 
-  const chipIds = useMemo(() => {
-    const ids = [...withData];
-    for (const id of selection) if (!ids.includes(id)) ids.push(id);
-    return ids;
-  }, [withData, selection]);
-
-  const candidates = useMemo(
-    () => [...known].filter((id) => !selection.includes(id)),
-    [known, selection]
-  );
+  const allLiftIds = useMemo(() => [...known], [known]);
 
   function toggleLift(id: string) {
     setSelected(selection.includes(id) ? selection.filter((x) => x !== id) : [...selection, id]);
   }
+
+  const selectionNames = selection.map((id) => exerciseName(data, id));
+  const liftLabel =
+    selectionNames.length === 0
+      ? 'Choose lifts'
+      : selectionNames.length <= 2
+        ? selectionNames.join(', ')
+        : `${selectionNames[0]}, ${selectionNames[1]} +${selectionNames.length - 2}`;
 
   const rangeDays = RANGES.find((r) => r.id === rangeId)?.days ?? null;
   const cutoff = rangeDays == null ? null : addDaysISO(todayISO(), -rangeDays);
@@ -280,19 +337,16 @@ export default function ProgressScreen() {
         <div className="card empty">Log some sets and your strength charts will show up here.</div>
       ) : (
         <div className="stack">
-          <div className="chips-row">
-            {chipIds.map((id) => (
-              <button
-                key={id}
-                type="button"
-                className={`chip${selection.includes(id) ? ' active' : ''}`}
-                onClick={() => toggleLift(id)}
-              >
-                {exerciseName(data, id)}
-              </button>
-            ))}
-            <button type="button" className="chip" onClick={() => setAddOpen(true)}>
-              + Add lift
+          <div className="row">
+            <button type="button" className="dd-btn" onClick={() => setLiftsOpen(true)}>
+              <span className="dd-label">{liftLabel}</span>
+              <span className="dd-chevron">▾</span>
+            </button>
+            <button type="button" className="dd-btn" onClick={() => setGraphsOpen(true)}>
+              <span className="dd-label">
+                Graphs · {flagChips.filter((f) => flags[f.id]).length}/{flagChips.length}
+              </span>
+              <span className="dd-chevron">▾</span>
             </button>
           </div>
 
@@ -345,24 +399,8 @@ export default function ProgressScreen() {
             </div>
           )}
 
-          <div className="chips-row">
-            <span className="sub dim" style={{ alignSelf: 'center', flex: 'none' }}>
-              Graphs:
-            </span>
-            {flagChips.map((f) => (
-              <button
-                key={f.id}
-                type="button"
-                className={`chip small${flags[f.id] ? ' active' : ''}`}
-                onClick={() => setFlags({ ...flags, [f.id]: !flags[f.id] })}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
-
           {selection.length === 0 && (
-            <div className="card empty">Select or add a lift above to see its graphs.</div>
+            <div className="card empty">Choose a lift above to see its graphs.</div>
           )}
 
           {single && flags.e1rm && (
@@ -608,15 +646,21 @@ export default function ProgressScreen() {
         </section>
       )}
 
-      {addOpen && (
-        <AddLiftSheet
+      {liftsOpen && (
+        <LiftPickerSheet
           data={data}
-          candidates={candidates}
-          onPick={(id) => {
-            setSelected([...selection, id]);
-            setAddOpen(false);
-          }}
-          onClose={() => setAddOpen(false)}
+          ids={allLiftIds}
+          selection={selection}
+          onToggle={toggleLift}
+          onClose={() => setLiftsOpen(false)}
+        />
+      )}
+      {graphsOpen && (
+        <GraphPickerSheet
+          flags={flags}
+          defs={flagChips}
+          onToggle={(id) => setFlags({ ...flags, [id]: !flags[id] })}
+          onClose={() => setGraphsOpen(false)}
         />
       )}
     </div>

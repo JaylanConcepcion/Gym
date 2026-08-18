@@ -847,6 +847,36 @@ h3 {
   gap: 6px;
 }
 
+/* ---------- dropdown buttons ---------- */
+
+.dd-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 14.5px;
+  font-weight: 600;
+  min-width: 0;
+  color: var(--text);
+}
+
+.dd-btn .dd-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dd-chevron {
+  color: var(--text-dim);
+  flex: none;
+  font-size: 12px;
+}
+
 /* ---------- 1RM calculator ---------- */
 
 .calc-btn {
