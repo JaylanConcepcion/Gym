@@ -534,17 +534,84 @@ h3 {
   white-space: nowrap;
 }
 
-.date-btn {
-  position: relative;
-  overflow: hidden;
+.date-pick {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 4px;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 7px 11px;
+  max-width: 100%;
 }
 
-.date-btn input {
+/* ---------- calendar picker ---------- */
+
+.cal-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.cal-title {
+  font-size: 15.5px;
+  font-weight: 700;
+}
+
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.cal-week {
+  margin-bottom: -6px;
+}
+
+.cal-weekday {
+  text-align: center;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+
+.cal-cell {
+  position: relative;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: var(--surface-2);
+  font-size: 14.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.cal-cell:disabled {
+  opacity: 0.28;
+}
+
+.cal-cell.today {
+  border: 1.5px solid var(--accent);
+}
+
+.cal-cell.selected {
+  background: var(--accent);
+  color: #1b0606;
+}
+
+.cal-dot {
   position: absolute;
-  inset: 0;
-  opacity: 0;
-  width: 100%;
-  height: 100%;
+  bottom: 5px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--green);
 }
 
 /* ---------- progress ---------- */

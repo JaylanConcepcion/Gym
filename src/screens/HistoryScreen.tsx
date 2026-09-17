@@ -6,6 +6,7 @@ import { formatTonnage, formatWeightValue } from '../lib/units';
 import BodyWeightCard from '../components/BodyWeightCard';
 import CardioCard from '../components/CardioCard';
 import ConfirmButton from '../components/ConfirmButton';
+import DatePickerSheet from '../components/DatePickerSheet';
 import SessionEditor from '../components/SessionEditor';
 import { sessionCardioCalories } from '../lib/cardio';
 
@@ -14,6 +15,7 @@ export default function HistoryScreen() {
   const actions = useActions();
   const units = data.settings.units;
   const [selected, setSelected] = useState<string | null>(null);
+  const [dateOpen, setDateOpen] = useState(false);
 
   if (selected) {
     return (
@@ -49,17 +51,21 @@ export default function HistoryScreen() {
     <div className="screen">
       <header className="screen-header with-action">
         <h1>History</h1>
-        <label className="btn ghost small date-btn">
+        <button type="button" className="btn ghost small" onClick={() => setDateOpen(true)}>
           + Log past day
-          <input
-            type="date"
-            max={todayISO()}
-            onChange={(e) => {
-              if (e.target.value) setSelected(e.target.value);
-            }}
-          />
-        </label>
+        </button>
       </header>
+      {dateOpen && (
+        <DatePickerSheet
+          initial={todayISO()}
+          maxDate={todayISO()}
+          onPick={(d) => {
+            setSelected(d);
+            setDateOpen(false);
+          }}
+          onClose={() => setDateOpen(false)}
+        />
+      )}
       {sessions.length === 0 ? (
         <div className="card empty">No sessions yet. Hit the gym and log your first one.</div>
       ) : (
