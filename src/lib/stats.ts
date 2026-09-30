@@ -10,6 +10,7 @@ export interface LoggedSet {
   weightKg: number;
   reps: number;
   rpe: number | null;
+  amrap: boolean;
   e1rmKg: number;
 }
 
@@ -25,6 +26,7 @@ export function allLoggedSets(data: AppData): LoggedSet[] {
           weightKg: set.weightKg,
           reps: set.reps,
           rpe: set.rpe,
+          amrap: set.amrap ?? false,
           e1rmKg: estimate1RM(set.weightKg, set.reps, set.rpe)
         });
       }
@@ -80,6 +82,24 @@ export function topSetE1rmByPeriod(
   return [...byKey.entries()]
     .map(([key, s]) => ({ key, e1rmKg: s.e1rmKg }))
     .sort((a, b) => a.key.localeCompare(b.key));
+}
+
+/** Best AMRAP set per day (most reps, tie → heavier). Drives accessory rep-out trends. */
+export function amrapRepsByDate(
+  data: AppData,
+  exerciseId: string
+): Array<{ date: string; reps: number; weightKg: number }> {
+  const byDate = new Map<string, LoggedSet>();
+  for (const s of allLoggedSets(data)) {
+    if (s.exerciseId !== exerciseId || !s.amrap) continue;
+    const cur = byDate.get(s.date);
+    if (!cur || s.reps > cur.reps || (s.reps === cur.reps && s.weightKg > cur.weightKg)) {
+      byDate.set(s.date, s);
+    }
+  }
+  return [...byDate.values()]
+    .map((s) => ({ date: s.date, reps: s.reps, weightKg: s.weightKg }))
+    .sort((a, b) => a.date.localeCompare(b.date));
 }
 
 /** Rep counts actually logged for an exercise (ascending, capped at 15). */

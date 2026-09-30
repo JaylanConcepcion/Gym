@@ -15,8 +15,8 @@ import type { AppData, Profile, Session, Tombstone, Units } from './types';
 type Action =
   | { type: 'add-block'; date: string; blockId: string; exerciseId: string; at: number }
   | { type: 'remove-block'; date: string; blockId: string; at: number }
-  | { type: 'add-set'; date: string; blockId: string; setId: string; weightKg: number; reps: number; rpe: number | null; at: number }
-  | { type: 'update-set'; date: string; blockId: string; setId: string; weightKg: number; reps: number; rpe: number | null; at: number }
+  | { type: 'add-set'; date: string; blockId: string; setId: string; weightKg: number; reps: number; rpe: number | null; amrap: boolean; at: number }
+  | { type: 'update-set'; date: string; blockId: string; setId: string; weightKg: number; reps: number; rpe: number | null; amrap: boolean; at: number }
   | { type: 'remove-set'; date: string; blockId: string; setId: string; at: number }
   | { type: 'delete-session'; date: string; at: number }
   | { type: 'set-bodyweight'; date: string; weightKg: number | null; at: number }
@@ -116,7 +116,13 @@ function reducer(data: AppData, action: Action): AppData {
                   ...b,
                   sets: [
                     ...b.sets,
-                    { id: action.setId, weightKg: action.weightKg, reps: action.reps, rpe: action.rpe }
+                    {
+                      id: action.setId,
+                      weightKg: action.weightKg,
+                      reps: action.reps,
+                      rpe: action.rpe,
+                      amrap: action.amrap
+                    }
                   ]
                 }
           )
@@ -137,7 +143,13 @@ function reducer(data: AppData, action: Action): AppData {
                   ...b,
                   sets: b.sets.map((set) =>
                     set.id === action.setId
-                      ? { ...set, weightKg: action.weightKg, reps: action.reps, rpe: action.rpe }
+                      ? {
+                          ...set,
+                          weightKg: action.weightKg,
+                          reps: action.reps,
+                          rpe: action.rpe,
+                          amrap: action.amrap
+                        }
                       : set
                   )
                 }
@@ -373,13 +385,16 @@ export function useActions() {
         dispatch({ type: 'add-block', date, blockId: uid(), exerciseId, at: Date.now() }),
       removeBlock: (date: string, blockId: string) =>
         dispatch({ type: 'remove-block', date, blockId, at: Date.now() }),
-      addSet: (date: string, blockId: string, set: { weightKg: number; reps: number; rpe: number | null }) =>
-        dispatch({ type: 'add-set', date, blockId, setId: uid(), ...set, at: Date.now() }),
+      addSet: (
+        date: string,
+        blockId: string,
+        set: { weightKg: number; reps: number; rpe: number | null; amrap: boolean }
+      ) => dispatch({ type: 'add-set', date, blockId, setId: uid(), ...set, at: Date.now() }),
       updateSet: (
         date: string,
         blockId: string,
         setId: string,
-        set: { weightKg: number; reps: number; rpe: number | null }
+        set: { weightKg: number; reps: number; rpe: number | null; amrap: boolean }
       ) => dispatch({ type: 'update-set', date, blockId, setId, ...set, at: Date.now() }),
       removeSet: (date: string, blockId: string, setId: string) =>
         dispatch({ type: 'remove-set', date, blockId, setId, at: Date.now() }),

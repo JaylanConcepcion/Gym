@@ -19,6 +19,8 @@ export interface WorkoutSet {
   reps: number;
   /** 6–10 in 0.5 steps, or null when not rated. */
   rpe: number | null;
+  /** Max-effort rep-out set; stored with rpe 10 and tracked per-reps in graphs. */
+  amrap?: boolean;
 }
 
 export interface ExerciseBlock {

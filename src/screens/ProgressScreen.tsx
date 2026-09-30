@@ -14,6 +14,7 @@ import {
 import { addDaysISO, formatMonthLabel, formatShortDate, todayISO } from '../lib/dates';
 import { BIG3, exerciseName } from '../lib/exercises';
 import {
+  amrapRepsByDate,
   bodyWeightSeries,
   exercisesWithData,
   prRecords,
@@ -47,6 +48,7 @@ interface ChartFlags {
   e1rm: boolean;
   top: boolean;
   volume: boolean;
+  amrap: boolean;
   prs: boolean;
   bw: boolean;
 }
@@ -60,7 +62,14 @@ interface ProgressPrefs {
 }
 
 const PREFS_KEY = 'pl-tracker/progress-ui';
-const DEFAULT_FLAGS: ChartFlags = { e1rm: true, top: true, volume: true, prs: true, bw: true };
+const DEFAULT_FLAGS: ChartFlags = {
+  e1rm: true,
+  top: true,
+  volume: true,
+  amrap: true,
+  prs: true,
+  bw: true
+};
 
 function loadPrefs(): Partial<ProgressPrefs> {
   try {
@@ -325,6 +334,7 @@ export default function ProgressScreen() {
     { id: 'e1rm', label: 'e1RM' },
     { id: 'top', label: 'Top set' },
     { id: 'volume', label: 'Volume' },
+    { id: 'amrap', label: 'AMRAP reps' },
     { id: 'prs', label: 'PRs' },
     { id: 'bw', label: 'Bodyweight' }
   ];
@@ -560,6 +570,55 @@ export default function ProgressScreen() {
                 </ChartCard>
               );
             })}
+
+          {flags.amrap &&
+            selection
+              .filter((id) => !BIG3.includes(id))
+              .map((id) => {
+                const series = amrapRepsByDate(data, id)
+                  .filter((s) => !cutoff || s.date >= cutoff)
+                  .map((s) => ({
+                    label: formatShortDate(s.date),
+                    value: s.reps,
+                    weight: `${formatWeightValue(s.weightKg, units)} ${units}`
+                  }));
+                if (series.length === 0) return null;
+                const i = selection.indexOf(id);
+                return (
+                  <ChartCard key={id} title={`AMRAP reps — ${exerciseName(data, id)}`}>
+                    <LineChart data={series} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
+                      <CartesianGrid stroke="#23262e" strokeDasharray="3 3" vertical={false} />
+                      <XAxis
+                        dataKey="label"
+                        tick={AXIS_TICK}
+                        tickLine={false}
+                        axisLine={{ stroke: '#2a2f38' }}
+                        minTickGap={24}
+                      />
+                      <YAxis
+                        tick={AXIS_TICK}
+                        tickLine={false}
+                        axisLine={false}
+                        domain={['auto', 'auto']}
+                        width={48}
+                        allowDecimals={false}
+                      />
+                      <Tooltip {...TOOLTIP_STYLES} />
+                      <Line
+                        type="monotone"
+                        dataKey="value"
+                        name="AMRAP"
+                        unit=" reps"
+                        stroke={colorFor(i)}
+                        strokeWidth={2.5}
+                        dot={{ r: 3, fill: colorFor(i), strokeWidth: 0 }}
+                        activeDot={{ r: 5 }}
+                        isAnimationActive={false}
+                      />
+                    </LineChart>
+                  </ChartCard>
+                );
+              })}
 
           {flags.prs &&
             selection.map((id) => {

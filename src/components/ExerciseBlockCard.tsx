@@ -12,6 +12,7 @@ interface Draft {
   w: string;
   r: string;
   rpe: number | null;
+  amrap?: boolean;
   dirty: boolean;
 }
 
@@ -37,20 +38,27 @@ function saveDraft(blockId: string, d: Draft) {
 }
 
 function RpeSelect({
-  value,
+  rpe,
+  amrap,
   onChange,
   label
 }: {
-  value: number | null;
-  onChange: (rpe: number | null) => void;
+  rpe: number | null;
+  amrap: boolean;
+  onChange: (rpe: number | null, amrap: boolean) => void;
   label: string;
 }) {
   return (
     <select
       className="input compact rpe-select"
       aria-label={label}
-      value={value == null ? '' : String(value)}
-      onChange={(e) => onChange(e.target.value === '' ? null : parseFloat(e.target.value))}
+      value={amrap ? 'amrap' : rpe == null ? '' : String(rpe)}
+      onChange={(e) => {
+        const v = e.target.value;
+        if (v === 'amrap') onChange(10, true);
+        else if (v === '') onChange(null, false);
+        else onChange(parseFloat(v), false);
+      }}
     >
       <option value="">—</option>
       {RPE_VALUES.map((v) => (
@@ -58,6 +66,7 @@ function RpeSelect({
           {v}
         </option>
       ))}
+      <option value="amrap">AMRAP</option>
     </select>
   );
 }
@@ -80,19 +89,22 @@ function SetRow({
   const [weightStr, setWeightStr] = useState(() => formatWeightValue(set.weightKg, units));
   const [repsStr, setRepsStr] = useState(() => String(set.reps));
   const [rpe, setRpe] = useState<number | null>(set.rpe);
-  const lastSentRef = useRef({ w: set.weightKg, r: set.reps, rpe: set.rpe });
+  const [amrap, setAmrap] = useState(set.amrap ?? false);
+  const lastSentRef = useRef({ w: set.weightKg, r: set.reps, rpe: set.rpe, amrap: set.amrap ?? false });
 
   // Re-sync when the stored set changes from elsewhere (sync from the other device).
   useEffect(() => {
     const ls = lastSentRef.current;
-    if (set.weightKg !== ls.w || set.reps !== ls.r || set.rpe !== ls.rpe) {
+    const setAmrapVal = set.amrap ?? false;
+    if (set.weightKg !== ls.w || set.reps !== ls.r || set.rpe !== ls.rpe || setAmrapVal !== ls.amrap) {
       setWeightStr(formatWeightValue(set.weightKg, units));
       setRepsStr(String(set.reps));
       setRpe(set.rpe);
-      lastSentRef.current = { w: set.weightKg, r: set.reps, rpe: set.rpe };
+      setAmrap(setAmrapVal);
+      lastSentRef.current = { w: set.weightKg, r: set.reps, rpe: set.rpe, amrap: setAmrapVal };
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [set.weightKg, set.reps, set.rpe]);
+  }, [set.weightKg, set.reps, set.rpe, set.amrap]);
 
   // Re-render display strings when lb/kg is toggled.
   useEffect(() => {
@@ -100,13 +112,13 @@ function SetRow({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [units]);
 
-  function commit(nextWeightStr: string, nextRepsStr: string, nextRpe: number | null) {
+  function commit(nextWeightStr: string, nextRepsStr: string, nextRpe: number | null, nextAmrap: boolean) {
     const weightVal = parseFloat(nextWeightStr.replace(',', '.'));
     const reps = parseInt(nextRepsStr, 10);
     if (!Number.isFinite(weightVal) || weightVal <= 0 || !Number.isFinite(reps) || reps < 1) return;
     const weightKg = displayToKg(weightVal, units);
-    lastSentRef.current = { w: weightKg, r: reps, rpe: nextRpe };
-    actions.updateSet(date, blockId, set.id, { weightKg, reps, rpe: nextRpe });
+    lastSentRef.current = { w: weightKg, r: reps, rpe: nextRpe, amrap: nextAmrap };
+    actions.updateSet(date, blockId, set.id, { weightKg, reps, rpe: nextRpe, amrap: nextAmrap });
   }
 
   const weightVal = parseFloat(weightStr.replace(',', '.'));
@@ -123,7 +135,7 @@ function SetRow({
         value={weightStr}
         onChange={(e) => {
           setWeightStr(e.target.value);
-          commit(e.target.value, repsStr, rpe);
+          commit(e.target.value, repsStr, rpe, amrap);
         }}
         placeholder="0"
         aria-label="Weight"
@@ -134,17 +146,19 @@ function SetRow({
         value={repsStr}
         onChange={(e) => {
           setRepsStr(e.target.value);
-          commit(weightStr, e.target.value, rpe);
+          commit(weightStr, e.target.value, rpe, amrap);
         }}
         placeholder="0"
         aria-label="Reps"
       />
       <RpeSelect
-        value={rpe}
+        rpe={rpe}
+        amrap={amrap}
         label="RPE"
-        onChange={(v) => {
+        onChange={(v, a) => {
           setRpe(v);
-          commit(weightStr, repsStr, v);
+          setAmrap(a);
+          commit(weightStr, repsStr, v, a);
         }}
       />
       <span className="set-e1rm-cell">{formatWeightValue(e1, units, 0)}</span>
@@ -175,13 +189,17 @@ export default function ExerciseBlockCard({ date, block }: { date: string; block
     const cached = loadDraft(block.id);
     return cached ? cached.rpe : last ? last.rpe : 8;
   });
+  const [dAmrap, setDAmrap] = useState<boolean>(() => {
+    const cached = loadDraft(block.id);
+    return cached ? (cached.amrap ?? false) : (last?.amrap ?? false);
+  });
   /** True while the draft holds typed values that haven't been logged yet. */
   const [dDirty, setDDirty] = useState(() => loadDraft(block.id)?.dirty ?? false);
   const [justLogged, setJustLogged] = useState(false);
 
   useEffect(() => {
-    saveDraft(block.id, { w: dWeight, r: dReps, rpe: dRpe, dirty: dDirty });
-  }, [block.id, dWeight, dReps, dRpe, dDirty]);
+    saveDraft(block.id, { w: dWeight, r: dReps, rpe: dRpe, amrap: dAmrap, dirty: dDirty });
+  }, [block.id, dWeight, dReps, dRpe, dAmrap, dDirty]);
 
   const weightVal = parseFloat(dWeight.replace(',', '.'));
   const reps = parseInt(dReps, 10);
@@ -196,7 +214,12 @@ export default function ExerciseBlockCard({ date, block }: { date: string; block
 
   function addSet() {
     if (!valid) return;
-    actions.addSet(date, block.id, { weightKg: displayToKg(weightVal, units), reps, rpe: dRpe });
+    actions.addSet(date, block.id, {
+      weightKg: displayToKg(weightVal, units),
+      reps,
+      rpe: dRpe,
+      amrap: dAmrap
+    });
     setDDirty(false);
     setJustLogged(true);
     window.setTimeout(() => setJustLogged(false), 1400);
@@ -214,7 +237,7 @@ export default function ExerciseBlockCard({ date, block }: { date: string; block
           {topSet && (
             <div className="sub">
               top set {formatWeightValue(topSet.weightKg, units)} × {topSet.reps}
-              {topSet.rpe != null && ` @${topSet.rpe}`} · e1RM{' '}
+              {topSet.amrap ? ' AMRAP' : topSet.rpe != null ? ` @${topSet.rpe}` : ''} · e1RM{' '}
               {formatWeightValue(estimate1RM(topSet.weightKg, topSet.reps, topSet.rpe), units, 0)} {units}
             </div>
           )}
@@ -273,7 +296,15 @@ export default function ExerciseBlockCard({ date, block }: { date: string; block
           placeholder="0"
           aria-label="New set reps"
         />
-        <RpeSelect value={dRpe} label="New set RPE" onChange={setDRpe} />
+        <RpeSelect
+          rpe={dRpe}
+          amrap={dAmrap}
+          label="New set RPE"
+          onChange={(v, a) => {
+            setDRpe(v);
+            setDAmrap(a);
+          }}
+        />
         <span className="set-e1rm-cell">{draftE1rm != null ? formatWeightValue(draftE1rm, units, 0) : ''}</span>
         <span />
       </div>
@@ -286,7 +317,7 @@ export default function ExerciseBlockCard({ date, block }: { date: string; block
         {justLogged
           ? '✓ Logged — tap again for another set'
           : valid
-            ? `＋ Log set — ${dWeight} ${units} × ${dReps}${dRpe != null ? ` @${dRpe}` : ''}`
+            ? `＋ Log set — ${dWeight} ${units} × ${dReps}${dAmrap ? ' AMRAP' : dRpe != null ? ` @${dRpe}` : ''}`
             : '＋ Log set (enter weight & reps above)'}
       </button>
     </section>
