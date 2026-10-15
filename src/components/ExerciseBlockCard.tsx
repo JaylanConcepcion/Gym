@@ -7,6 +7,38 @@ import type { ExerciseBlock, Units, WorkoutSet } from '../lib/types';
 import ConfirmButton from './ConfirmButton';
 
 const RPE_VALUES = [6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10];
+const REPS_OPTIONS = Array.from({ length: 50 }, (_, i) => i + 1);
+
+/** Reps dropdown: AMRAP (to failure, count optional) on top, then 1–50. */
+function RepsSelect({
+  value,
+  onChange,
+  label
+}: {
+  /** '' (unset), 'amrap', or a rep number as string. */
+  value: string;
+  onChange: (value: string) => void;
+  label: string;
+}) {
+  return (
+    <select
+      className="input compact rpe-select"
+      aria-label={label}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+    >
+      <option value="" disabled>
+        Reps
+      </option>
+      <option value="amrap">AMRAP</option>
+      {REPS_OPTIONS.map((r) => (
+        <option key={r} value={r}>
+          {r}
+        </option>
+      ))}
+    </select>
+  );
+}
 
 interface Draft {
   w: string;
@@ -148,16 +180,20 @@ function SetRow({
         placeholder="0"
         aria-label="Weight"
       />
-      <input
-        className="input compact"
-        inputMode="numeric"
-        value={repsStr}
-        onChange={(e) => {
-          setRepsStr(e.target.value);
-          commit(weightStr, e.target.value, rpe, amrap);
+      <RepsSelect
+        label="Reps"
+        value={amrap && !Number.isFinite(parseInt(repsStr, 10)) ? 'amrap' : repsStr}
+        onChange={(v) => {
+          if (v === 'amrap') {
+            setRepsStr('');
+            setAmrap(true);
+            setRpe(10);
+            commit(weightStr, '', 10, true);
+          } else {
+            setRepsStr(v);
+            commit(weightStr, v, rpe, amrap);
+          }
         }}
-        placeholder={amrap ? 'AMRAP' : '0'}
-        aria-label="Reps"
       />
       <RpeSelect
         rpe={rpe}
@@ -296,22 +332,19 @@ export default function ExerciseBlockCard({ date, block }: { date: string; block
           placeholder="0"
           aria-label="New set weight"
         />
-        <input
-          className="input compact"
-          inputMode="numeric"
-          value={dReps}
-          onChange={(e) => {
-            setDReps(e.target.value);
+        <RepsSelect
+          label="New set reps"
+          value={dAmrap && !repsOk ? 'amrap' : dReps}
+          onChange={(v) => {
+            if (v === 'amrap') {
+              setDReps('');
+              setDAmrap(true);
+              setDRpe(10);
+            } else {
+              setDReps(v);
+            }
             setDDirty(true);
           }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              addSet();
-            }
-          }}
-          placeholder={dAmrap ? 'AMRAP' : '0'}
-          aria-label="New set reps"
         />
         <RpeSelect
           rpe={dRpe}
