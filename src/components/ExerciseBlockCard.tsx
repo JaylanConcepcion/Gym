@@ -87,7 +87,7 @@ function SetRow({
 }) {
   const actions = useActions();
   const [weightStr, setWeightStr] = useState(() => formatWeightValue(set.weightKg, units));
-  const [repsStr, setRepsStr] = useState(() => String(set.reps));
+  const [repsStr, setRepsStr] = useState(() => (set.reps >= 1 ? String(set.reps) : ''));
   const [rpe, setRpe] = useState<number | null>(set.rpe);
   const [amrap, setAmrap] = useState(set.amrap ?? false);
   const lastSentRef = useRef({ w: set.weightKg, r: set.reps, rpe: set.rpe, amrap: set.amrap ?? false });
@@ -98,7 +98,7 @@ function SetRow({
     const setAmrapVal = set.amrap ?? false;
     if (set.weightKg !== ls.w || set.reps !== ls.r || set.rpe !== ls.rpe || setAmrapVal !== ls.amrap) {
       setWeightStr(formatWeightValue(set.weightKg, units));
-      setRepsStr(String(set.reps));
+      setRepsStr(set.reps >= 1 ? String(set.reps) : '');
       setRpe(set.rpe);
       setAmrap(setAmrapVal);
       lastSentRef.current = { w: set.weightKg, r: set.reps, rpe: set.rpe, amrap: setAmrapVal };
@@ -114,8 +114,12 @@ function SetRow({
 
   function commit(nextWeightStr: string, nextRepsStr: string, nextRpe: number | null, nextAmrap: boolean) {
     const weightVal = parseFloat(nextWeightStr.replace(',', '.'));
-    const reps = parseInt(nextRepsStr, 10);
-    if (!Number.isFinite(weightVal) || weightVal <= 0 || !Number.isFinite(reps) || reps < 1) return;
+    const parsedReps = parseInt(nextRepsStr, 10);
+    const repsOk = Number.isFinite(parsedReps) && parsedReps >= 1;
+    if (!Number.isFinite(weightVal) || weightVal <= 0) return;
+    // AMRAP sets don't require a rep count — 0 means "to failure, not counted".
+    if (!repsOk && !nextAmrap) return;
+    const reps = repsOk ? parsedReps : 0;
     const weightKg = displayToKg(weightVal, units);
     lastSentRef.current = { w: weightKg, r: reps, rpe: nextRpe, amrap: nextAmrap };
     actions.updateSet(date, blockId, set.id, { weightKg, reps, rpe: nextRpe, amrap: nextAmrap });
@@ -123,8 +127,12 @@ function SetRow({
 
   const weightVal = parseFloat(weightStr.replace(',', '.'));
   const reps = parseInt(repsStr, 10);
-  const valid = Number.isFinite(weightVal) && weightVal > 0 && Number.isFinite(reps) && reps >= 1;
-  const e1 = valid ? estimate1RM(displayToKg(weightVal, units), reps, rpe) : estimate1RM(set.weightKg, set.reps, set.rpe);
+  const repsOk = Number.isFinite(reps) && reps >= 1;
+  const valid = Number.isFinite(weightVal) && weightVal > 0 && (repsOk || amrap);
+  const e1 =
+    valid && repsOk
+      ? estimate1RM(displayToKg(weightVal, units), reps, rpe)
+      : estimate1RM(set.weightKg, set.reps, set.rpe);
 
   return (
     <div className="set-grid">
@@ -148,7 +156,7 @@ function SetRow({
           setRepsStr(e.target.value);
           commit(weightStr, e.target.value, rpe, amrap);
         }}
-        placeholder="0"
+        placeholder={amrap ? 'AMRAP' : '0'}
         aria-label="Reps"
       />
       <RpeSelect
@@ -161,7 +169,7 @@ function SetRow({
           commit(weightStr, repsStr, v, a);
         }}
       />
-      <span className="set-e1rm-cell">{formatWeightValue(e1, units, 0)}</span>
+      <span className="set-e1rm-cell">{e1 > 0 ? formatWeightValue(e1, units, 0) : '—'}</span>
       <button
         type="button"
         className="icon-btn small"
@@ -203,8 +211,9 @@ export default function ExerciseBlockCard({ date, block }: { date: string; block
 
   const weightVal = parseFloat(dWeight.replace(',', '.'));
   const reps = parseInt(dReps, 10);
-  const valid = Number.isFinite(weightVal) && weightVal > 0 && Number.isFinite(reps) && reps >= 1;
-  const draftE1rm = valid ? estimate1RM(displayToKg(weightVal, units), reps, dRpe) : null;
+  const repsOk = Number.isFinite(reps) && reps >= 1;
+  const valid = Number.isFinite(weightVal) && weightVal > 0 && (repsOk || dAmrap);
+  const draftE1rm = valid && repsOk ? estimate1RM(displayToKg(weightVal, units), reps, dRpe) : null;
 
   const topSet = block.sets.reduce<WorkoutSet | null>(
     (top, s) =>
@@ -216,7 +225,7 @@ export default function ExerciseBlockCard({ date, block }: { date: string; block
     if (!valid) return;
     actions.addSet(date, block.id, {
       weightKg: displayToKg(weightVal, units),
-      reps,
+      reps: repsOk ? reps : 0,
       rpe: dRpe,
       amrap: dAmrap
     });
@@ -236,9 +245,17 @@ export default function ExerciseBlockCard({ date, block }: { date: string; block
           <h3>{exName}</h3>
           {topSet && (
             <div className="sub">
-              top set {formatWeightValue(topSet.weightKg, units)} × {topSet.reps}
-              {topSet.amrap ? ' AMRAP' : topSet.rpe != null ? ` @${topSet.rpe}` : ''} · e1RM{' '}
-              {formatWeightValue(estimate1RM(topSet.weightKg, topSet.reps, topSet.rpe), units, 0)} {units}
+              top set {formatWeightValue(topSet.weightKg, units)} ×{' '}
+              {topSet.reps >= 1 ? topSet.reps : 'AMRAP'}
+              {topSet.amrap && topSet.reps >= 1 ? ' AMRAP' : !topSet.amrap && topSet.rpe != null ? ` @${topSet.rpe}` : ''}
+              {estimate1RM(topSet.weightKg, topSet.reps, topSet.rpe) > 0 && (
+                <>
+                  {' '}
+                  · e1RM{' '}
+                  {formatWeightValue(estimate1RM(topSet.weightKg, topSet.reps, topSet.rpe), units, 0)}{' '}
+                  {units}
+                </>
+              )}
             </div>
           )}
         </div>
@@ -293,7 +310,7 @@ export default function ExerciseBlockCard({ date, block }: { date: string; block
               addSet();
             }
           }}
-          placeholder="0"
+          placeholder={dAmrap ? 'AMRAP' : '0'}
           aria-label="New set reps"
         />
         <RpeSelect
@@ -317,8 +334,12 @@ export default function ExerciseBlockCard({ date, block }: { date: string; block
         {justLogged
           ? '✓ Logged — tap again for another set'
           : valid
-            ? `＋ Log set — ${dWeight} ${units} × ${dReps}${dAmrap ? ' AMRAP' : dRpe != null ? ` @${dRpe}` : ''}`
-            : '＋ Log set (enter weight & reps above)'}
+            ? `＋ Log set — ${dWeight} ${units} × ${repsOk ? dReps : 'AMRAP'}${
+                dAmrap && repsOk ? ' AMRAP' : !dAmrap && dRpe != null ? ` @${dRpe}` : ''
+              }`
+            : dAmrap
+              ? '＋ Log set (enter weight above)'
+              : '＋ Log set (enter weight & reps above)'}
       </button>
     </section>
   );

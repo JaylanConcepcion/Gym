@@ -73,6 +73,8 @@ export function topSetE1rmByPeriod(
   for (const s of allLoggedSets(data)) {
     if (s.exerciseId !== exerciseId) continue;
     if (reps != null && s.reps !== reps) continue;
+    // Uncounted AMRAP sets (reps 0) have no e1RM to contribute.
+    if (s.e1rmKg <= 0) continue;
     const k = periodKey(s.date, period);
     const cur = byKey.get(k);
     if (!cur || s.weightKg > cur.weightKg || (s.weightKg === cur.weightKg && s.reps > cur.reps)) {
@@ -91,7 +93,8 @@ export function amrapRepsByDate(
 ): Array<{ date: string; reps: number; weightKg: number }> {
   const byDate = new Map<string, LoggedSet>();
   for (const s of allLoggedSets(data)) {
-    if (s.exerciseId !== exerciseId || !s.amrap) continue;
+    // Only counted AMRAP sets (reps entered) can be charted.
+    if (s.exerciseId !== exerciseId || !s.amrap || s.reps < 1) continue;
     const cur = byDate.get(s.date);
     if (!cur || s.reps > cur.reps || (s.reps === cur.reps && s.weightKg > cur.weightKg)) {
       byDate.set(s.date, s);
