@@ -21,6 +21,13 @@ export default function LogScreen() {
   const setCount = session?.blocks.reduce((n, b) => n + b.sets.length, 0) ?? 0;
   const tonnageKg =
     session?.blocks.reduce((t, b) => t + b.sets.reduce((x, s) => x + s.weightKg * s.reps, 0), 0) ?? 0;
+  // Uncounted AMRAP sets have no rep number, so they can't add to tonnage —
+  // surface them so the total always visibly reconciles.
+  const uncountedAmrap =
+    session?.blocks.reduce(
+      (n, b) => n + b.sets.filter((s) => (s.amrap ?? false) && s.reps < 1).length,
+      0
+    ) ?? 0;
 
   return (
     <div className="screen">
@@ -34,6 +41,7 @@ export default function LogScreen() {
           {setCount > 0 && (
             <div className="sub">
               {setCount} sets · {formatTonnage(tonnageKg, units)}
+              {uncountedAmrap > 0 && ` · ${uncountedAmrap} AMRAP uncounted`}
             </div>
           )}
         </div>

@@ -228,15 +228,13 @@ export default function ExerciseBlockCard({ date, block }: { date: string; block
   const [dWeight, setDWeight] = useState(
     () => loadDraft(block.id)?.w ?? (last ? formatWeightValue(last.weightKg, units) : '')
   );
-  const [dReps, setDReps] = useState(() => loadDraft(block.id)?.r ?? (last ? String(last.reps) : ''));
+  // Reps deliberately start blank — each set's reps are chosen fresh.
+  const [dReps, setDReps] = useState(() => loadDraft(block.id)?.r ?? '');
   const [dRpe, setDRpe] = useState<number | null>(() => {
     const cached = loadDraft(block.id);
     return cached ? cached.rpe : last ? last.rpe : 8;
   });
-  const [dAmrap, setDAmrap] = useState<boolean>(() => {
-    const cached = loadDraft(block.id);
-    return cached ? (cached.amrap ?? false) : (last?.amrap ?? false);
-  });
+  const [dAmrap, setDAmrap] = useState<boolean>(() => loadDraft(block.id)?.amrap ?? false);
   /** True while the draft holds typed values that haven't been logged yet. */
   const [dDirty, setDDirty] = useState(() => loadDraft(block.id)?.dirty ?? false);
   const [justLogged, setJustLogged] = useState(false);
@@ -265,6 +263,9 @@ export default function ExerciseBlockCard({ date, block }: { date: string; block
       rpe: dRpe,
       amrap: dAmrap
     });
+    // Weight and RPE carry over for convenience; reps always reset to blank.
+    setDReps('');
+    setDAmrap(false);
     setDDirty(false);
     setJustLogged(true);
     window.setTimeout(() => setJustLogged(false), 1400);
@@ -365,7 +366,7 @@ export default function ExerciseBlockCard({ date, block }: { date: string; block
         onClick={addSet}
       >
         {justLogged
-          ? '✓ Logged — tap again for another set'
+          ? '✓ Logged — pick reps for the next set'
           : valid
             ? `＋ Log set — ${dWeight} ${units} × ${repsOk ? dReps : 'AMRAP'}${
                 dAmrap && repsOk ? ' AMRAP' : !dAmrap && dRpe != null ? ` @${dRpe}` : ''
